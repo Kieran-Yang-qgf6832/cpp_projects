@@ -6,7 +6,13 @@
   name="robotic_arm">
     <ros2_control name="arm_hw" type="system">
     <hardware>
-      <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+      <!-- 插件名必须与 mujoco_ros2_control 导出的类名一致（见 mujoco_system_interface_plugin.xml） -->
+      <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+      <!-- MJCF 入口是 scene.xml（它再 include 机器人本体 robotic_arm.xml）。
+           路径需要 xacro 展开 $(find ...)；kdl_tools 已把 src/model 装到
+           share/kdl_tools/model，所以 colcon build 后该路径存在。
+           若直接用未经 xacro 处理的 URDF，请把这里换成 MJCF 的绝对路径。 -->
+      <param name="mujoco_model">$(find kdl_tools)/model/scene.xml</param>
     </hardware>
 
     <joint name="joint1">

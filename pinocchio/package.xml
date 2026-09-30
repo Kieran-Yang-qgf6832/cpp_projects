@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>pinocchio_tools</name>
+  <version>0.1.0</version>
+  <description>
+    Minimal Pinocchio integration for ROS 2. The Tool module parses URDF files into
+    Pinocchio models and exposes printing helpers, together with runnable examples.
+  </description>
+  <maintainer email="kangy@example.com">kangy</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Pinocchio 本体：提供 Model / Data / urdf 解析器，并通过 CMake 传递 Eigen、coal、urdfdom 等依赖 -->
+  <depend>pinocchio</depend>
+  <!-- 直接使用 Eigen 类型（Eigen::VectorXd 等） -->
+  <depend>eigen</depend>
+  <!-- 示例中用于定位包安装目录下的模型文件 -->
+  <depend>ament_index_cpp</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
