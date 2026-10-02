@@ -1,0 +1,24 @@
+<library path="kdl_effort_controller">
+  <!--
+    kdl_tools 导出的 ros2_control 控制器插件。
+
+    class name 必须与 config/controllers.yaml 里
+        kdl_effort_controller:
+          type: kdl_tools/KdlEffortController
+    的 type 完全一致；base_class_type 必须是 controller_interface::ControllerInterface，
+    否则 controller_manager 加载时会报"找不到插件"。
+
+    CMake 里用 pluginlib_export_plugin_description_file(controller_interface <本文件>)
+    注册，安装后落在 share/kdl_tools/controller_plugins.xml。
+  -->
+  <class
+      name="kdl_tools/KdlEffortController"
+      type="kdl_tools::KdlEffortController"
+      base_class_type="controller_interface::ControllerInterface">
+    <description>
+      前馈 τ_ff + PID 反馈的关节力矩控制器。参考来自 /control_reference
+      （trajectory_msgs/JointTrajectory，position/velocity/effort），输出写 effort
+      命令接口（对应 MuJoCo 的 &lt;motor&gt;）。空闲/执行结束时用逆动力学重力项锁位。
+    </description>
+  </class>
+</library>

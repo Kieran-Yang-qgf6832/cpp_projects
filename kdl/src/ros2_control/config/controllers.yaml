@@ -1,0 +1,86 @@
+# =============================================================================
+# 控制器配置（ros2_control）—— 力矩控制版
+# -----------------------------------------------------------------------------
+# 这份文件同时喂给两个节点：
+#   1. mujoco_ros2_control 的 ros2_control_node（controller_manager 本体）
+#      —— 用 controller_manager.* 段（update_rate 与各控制器类型注册）
+#   2. controller_manager 的 spawner（--param-file 传同一份）
+#      —— 用各控制器自己的 ros__parameters 段
+#
+# 与 MJCF 的强耦合关系（改了这里就要回头看 MJCF，反之亦然）：
+#   update_rate × MJCF <option timestep> 必须是整数分频
+#   本方案：timestep = 2 ms（scene_torque.xml 显式声明）⇒ 500 Hz 物理步；
+#           update_rate = 500 Hz ⇒ 每控制周期 1 次 mj_step，力矩环相位滞后最小。
+#
+# 控制链路（与位置伺服版的区别）：
+#   旧：arm_controller(JTC) → position 命令接口 → MuJoCo <position> 位置伺服
+#   新：kdl_effort_controller → effort 命令接口 → MuJoCo <motor>（ctrl = 关节力矩）
+# 只有一种控制模式能在同一时刻作用于同一批关节，故旧的 arm_controller 已移除。
+# =============================================================================
+
+controller_manager:
+  ros__parameters:
+    # 控制周期（Hz）。CM 在 use_sim_time=true 下按"仿真时间"推进这个周期。
+    # 500 Hz 对齐 2 ms 物理步：每个控制周期恰好推进一步仿真。
+    update_rate: 500
+
+    # ---- 控制器类型注册：这里只声明名字与类型，真正加载靠 spawner ----
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # 主力：自研力矩控制器（前馈 τ_ff + PID 反馈），见 PLAN_TORQUE.md §6。
+    kdl_effort_controller:
+      type: kdl_tools/KdlEffortController
+
+# -----------------------------------------------------------------------------
+# 关节状态广播器：把硬件 state_interface 汇总成 sensor_msgs/JointState
+# 发布到 /joint_states；robot_state_publisher 靠它算 TF。
+# 它也供 kdl_control_node 取"任务起点"关节角（50 Hz 足够）。
+# -----------------------------------------------------------------------------
+joint_state_broadcaster:
+  ros__parameters:
+    # 允许比 CM 降频，但必须是 CM update_rate 的整数分频（500/10 = 50）
+    update_rate: 50
+
+# -----------------------------------------------------------------------------
+# 力矩控制器（kdl_tools/KdlEffortController）
+#   在 CM 的 500 Hz update() 内：
+#     τ = τ_ff + kp·Δq + kd·Δq̇ + ki·∫Δq   → 限幅 → 写 effort 命令接口
+#   参考来自 /control_reference（trajectory_msgs/JointTrajectory，由 kdl_control_node 发）；
+#   空闲/执行结束时切到重力前馈 G(q) 锁位（见 PLAN_TORQUE.md §6）。
+# -----------------------------------------------------------------------------
+kdl_effort_controller:
+  ros__parameters:
+    joints:
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+
+    # 命令接口：MJCF 是 <motor>，所以用 effort
+    command_interfaces:
+      - effort
+
+    # 状态接口：position/velocity 用于闭环，effort 供观测
+    state_interfaces:
+      - position
+      - velocity
+      - effort
+
+    # 参考轨迹话题（相对控制器命名空间）。空 = 默认 "~/reference"。
+    reference_topic: "/control_reference"
+
+    # 用于建 KDL 链做重力前馈。空 = share/kdl_tools/model/robotic_arm.urdf
+    urdf_file: ""
+
+    # PID 增益来源。空 = share/kdl_tools/config/mujoco_pids.yaml
+    # 只读其中的 pid_gains.position.<joint>：p/i/d/u_clamp_*/i_clamp_*
+    pid_config_file: ""
+
+    # 是否使用轨迹点里的 effort 作为前馈（关闭后为纯 PD + 重力）
+    feedforward: true
+
+    # ~/status 发布频率 [Hz]
+    status_publish_rate: 100.0

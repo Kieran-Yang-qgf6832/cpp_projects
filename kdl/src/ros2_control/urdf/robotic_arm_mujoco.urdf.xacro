@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<!--
+  ============================================================================
+  机械臂 + MuJoCo 硬件接口的机器人描述（ROS 2 控制层）
+  ============================================================================
+  这一层只干两件事，绝不重复机械参数：
+    1. xacro:include 模型文件（SolidWorks 导出的 robotic_arm.urdf），
+       运动学 / 惯量 / 关节行程都以它为准；
+    2. 追加 <ros2_control> 标签，把"关节 → MuJoCo 执行器"的映射、
+       硬件插件参数、命令/状态接口声明清楚。
+
+  数据流（一次控制周期，力矩控制）：
+    MuJoCo mj_step ──> 位置/速度/力矩 ──> state_interface ──> 控制器
+    控制器 ──> command_interface(关节力矩) ──> MuJoCo ctrl（<motor> 直接当力矩施加）
+
+  对应关系速查：
+    关节      joint1..joint6        （URDF，也是 MJCF 里的 joint 名）
+    执行器    motor1..motor6        （MJCF <motor .../>，ctrl = 关节力矩 [N·m]）
+    传动      1:1 直连，不需要 <transmission>（详见文件末尾注释与 README）
+
+  力矩控制的两个硬前提（改这里时别忘）：
+    1) MJCF 必须是 motor/general 执行器（用 scene_torque.xml）——effort 命令接口对
+       position/velocity 执行器会直接报错并跳过；
+    2) 控制律（前馈 τ_ff + PID 反馈）与限幅在 kdl_effort_controller 里，
+       本文件只负责声明 effort 命令接口与状态接口。
+  ============================================================================
+-->
+<robot name="robotic_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ======================= 可配置参数（launch 里透传） ======================= -->
+  <!-- MJCF 场景入口：scene_torque.xml 里 include 了力矩版本体 robotic_arm_torque.xml。
+       力矩控制必须走这一份（motor 执行器）；position 版 scene.xml 仍保留作回退。 -->
+  <xacro:arg name="mujoco_model" default="$(find kdl_tools)/model/scene_torque.xml"/>
+  <!-- true = 不开 MuJoCo 图形窗口（远程/CI 调试用） -->
+  <xacro:arg name="headless" default="false"/>
+  <!-- 仿真时间 / 墙钟时间 的倍率；>0 时忽略 MuJoCo 窗口里的实时率滑块 -->
+  <xacro:arg name="sim_speed_factor" default="1.0"/>
+
+  <xacro:property name="mujoco_model_path" value="$(arg mujoco_model)"/>
+  <xacro:property name="headless_flag" value="$(arg headless)"/>
+  <xacro:property name="speed_factor" value="$(arg sim_speed_factor)"/>
+
+  <!-- ======================= 1. 机器人本体（唯一真源） ======================= -->
+  <xacro:include filename="$(find kdl_tools)/model/robotic_arm.urdf"/>
+
+  <!-- ======================= 2. ros2_control 硬件接口 =======================
+       <ros2_control name="..." type="system"> 里的 name 是"硬件组件名"，
+       必须和 controllers.yaml 无关但会出现在日志里；type="system" 表示
+       这一块下有多个关节，由同一个插件实例统一管理。 -->
+  <ros2_control name="arm_hw" type="system">
+    <hardware>
+      <!-- 必须与 mujoco_ros2_control 导出的插件类名完全一致 -->
+      <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+
+      <!-- MJCF 文件：插件用 mj_loadXML 读它，路径必须真实存在（不含 ~ 或环境变量） -->
+      <param name="mujoco_model">${mujoco_model_path}</param>
+      <param name="headless">${headless_flag}</param>
+      <param name="sim_speed_factor">${speed_factor}</param>
+
+      <!-- 注意：不设置 pids_config_file。那份 PID 只在「position/velocity 命令接口 +
+           motor/自定义执行器」时由插件内部使用；本方案用 effort 命令接口，控制律与
+           增益（含 mujoco_pids.yaml 里的 p/i/d/u_clamp/i_clamp）全在 kdl_effort_controller 里。 -->
+
+      <!-- 其它可用参数（按需打开，语义见 README）：
+           <param name="initial_keyframe">start_pose</param>
+           <param name="override_start_position_file">$(find kdl_tools)/config/start_positions.xml</param>
+           <param name="mujoco_model_topic">/mujoco_robot_description</param>
+           <param name="odom_free_joint_name">floating_base_joint</param>
+           <param name="odom_topic">/simulator/floating_base_state</param> -->
+    </hardware>
+
+    <!-- 关节 ↔ 接口声明。六个关节接口完全相同，用宏展开避免手抄六遍。 -->
+    <xacro:macro name="arm_joint" params="name">
+      <joint name="${name}">
+        <!-- 命令接口：effort（关节力矩 [N·m]）。对应 MJCF 里的 <motor>，
+             ctrl = 力矩；插件把它原样写进 ctrl（无 gear 缩放，故 gear=1）。
+             effort 命令接口对 <position>/<velocity> 执行器会报错并跳过 —— 所以必须用
+             scene_torque.xml。 -->
+        <command_interface name="effort"/>
+        <!-- 状态接口：插件每个控制周期从 mjData 里取 qpos / qvel / qfrc_actuator。
+             position/velocity 供 kdl_effort_controller 做 PID 反馈；
+             effort 供上层观测实际施加的力矩。 -->
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+    </xacro:macro>
+
+    <xacro:arm_joint name="joint1"/>
+    <xacro:arm_joint name="joint2"/>
+    <xacro:arm_joint name="joint3"/>
+    <xacro:arm_joint name="joint4"/>
+    <xacro:arm_joint name="joint5"/>
+    <xacro:arm_joint name="joint6"/>
+
+    <!-- ===================== 传动（transmission）配置说明 =====================
+         当前的 1:1 直连不需要任何 <transmission>：
+         插件在 MJCF 里先按"关节名"找同名 joint，再找驱动它的 actuator，
+         找到就直接把该关节的命令写到 actuator 的 ctrl 上。
+
+         只有下面这些情况才需要显式声明传输：
+           * 一个关节由多个执行器共同驱动（并联/差动，如双气缸、四连杆）；
+           * 需要非 1:1 的机械减速比 / 偏置。
+         模板（transmission_interface/SimpleTransmission）：
+
+           <transmission name="joint1_trans">
+             <plugin>transmission_interface/SimpleTransmission</plugin>
+             <joint name="joint1" role="joint1">
+               <mechanical_reduction>1.0</mechanical_reduction>
+               <offset>0.0</offset>
+             </joint>
+             <actuator name="joint1" role="actuator1"/>
+           </transmission>
+
+         两个坑（源码里能读出来，踩过一次就明白）：
+           1. <actuator name="..."> 写的是 **MJCF 里被驱动关节的名字**，不是
+              MJCF 里 actuator 自己的名字（插件用 actuator_data.joint_name 匹配）；
+           2. 如果该关节名在 MJCF 里能直连到执行器，直连优先，减速比会被覆盖。
+              所以上游 demo（04_transmissions.launch.py）才会在加载前把 MJCF 的
+              关节名改成 actuator1/actuator2 来"绕开"直连。
+         结论：机械臂这种 1:1 关节，别加 transmission。 -->
+  </ros2_control>
+</robot>

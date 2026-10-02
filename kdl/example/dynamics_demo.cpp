@@ -11,7 +11,7 @@
 //      并检查 M 的对称性与正定性，最后与第 2 步的结果对照
 //   4) 正动力学  q̈ = FD(q, q̇, τ)，再做 FD(ID(q̈)) 往返闭合 （ChainFdSolver_RNE）
 //   5) 末端施加外力：局部坐标系口径 vs 基座坐标系口径
-//   6) 静力学特例：q̇ = q̈ = 0 时 τ 应当等于 G(q)（重力补偿）
+//   6) 静力学特例：q̇ = q̈ = 0 时 τ = ID(q,0,0) 就等于 G(q)，即"抵住重力所需力矩"
 //   7) 用正动力学做仿真：KDL 自带的 RK4 积分器把状态前推
 //
 // 两个关键教学点：
@@ -207,7 +207,8 @@ int main(int argc, char ** argv)
   kdl_dynamics::printIdResult(static_id);
   std::cout << "  与 G(q) 的最大偏差(应≈0): "
             << maxAbsDiff(static_id.torque, gravity_result.torque) << " N·m\n";
-  std::cout << "  => 机器人静止时仍需出力抵住重力，这就是重力补偿要抵消的部分：τ_comp = -G(q)。\n";
+  std::cout << "  => 机器人静止时仍需出力抵住重力；这个 τ = G(q) 本身就是「重力补偿力矩」，"
+               "直接施加即可（不要取负，取负会把重力加倍）。\n";
 
   // ---- 7. 用正动力学做仿真：RK4 积分 ----
   std::cout << "\n>>> 7) 正动力学用于仿真：先做重力补偿，再给定力矩，用 RK4 前推 0.2 s\n";
@@ -226,13 +227,15 @@ int main(int argc, char ** argv)
   KDL::JntArray q_temp(n);
   KDL::JntArray qdot_temp(n);
 
-  // 恒定力矩 = 初始位形的重力补偿 + 在 joint1 上多给 2 N·m 让它动起来。
+  // 恒定力矩 = 初始位形的重力补偿 G(q0) + 在 joint1 上多给 2 N·m 让它动起来。
+  // 注意：gravityTorque 返回的 G(q) 就是"抵住重力所需力矩"，**直接施加，不要取负**
+  //       （取负会把重力加倍，臂会加速砸下去）。
   // 只补偿一次 G(q0) 是有意为之：机器人动起来后重力项会变，
   // 真实控制器需要每个周期重算，这里正好能从仿真结果里看出这点偏差。
   const kdl_dynamics::GravityResult g0 = kdl_dynamics::gravityTorque(chain, q_sim);
   KDL::JntArray torque_cmd(n);
   for (unsigned int i = 0; i < n; ++i) {
-    torque_cmd(i) = -g0.torque(i);
+    torque_cmd(i) = g0.torque(i);
   }
   torque_cmd(0) += 2.0;  // joint1 额外 2 N·m
 

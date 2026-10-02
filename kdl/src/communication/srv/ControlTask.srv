@@ -1,0 +1,59 @@
+# ControlTask.srv
+# ---------------------------------------------------------------------------
+# control 层（任务解算）对外的"一次性调用"接口。
+# 调用者（状态机 / 脚本 / 上位机）只填"目标"，由 control_bridge_node 负责
+# 解算轨迹、采样成 JointTrajectory、下发给 arm_controller 并等执行结果。
+#
+# 为什么用 service 而不是 action：
+#   解算本身 < 100 ms，执行结果由 arm_controller 的 action 负责，本节点只是
+#   "翻译 + 转发"。调用的语义是"给我把这条轨迹执行完"，同步等待反而最直接。
+#   （要支持取消/进度反馈时才需要换成 action —— 见 PLAN.md §10。）
+# ---------------------------------------------------------------------------
+
+# ---- task_type 的取值（常量属于 Request）----
+uint8 JOINT_SPACE = 0      # 关节空间：goal_joint 直接给目标关节角
+uint8 CARTESIAN_SPACE = 1  # 笛卡尔空间：goal_pose 给目标末端位姿，内部做 IK
+
+# ============================== 请求 ==============================
+
+# JOINT_SPACE 或 CARTESIAN_SPACE；其它值一律拒绝（error_code = 2）
+uint8 task_type
+
+# JOINT_SPACE 用：目标关节角 [rad]，长度必须等于关节数（本臂 6）；
+# 顺序 = KDL 链的顺序（joint1..joint6），不是"随便给六个角度"。
+float64[] goal_joint
+
+# CARTESIAN_SPACE 用：目标位姿，相对基座（base_link）。
+# 姿态是四元数；不要求归一化，本节点会自己归一化后再转 KDL::Frame。
+geometry_msgs/Pose goal_pose
+
+# 轨迹总时长 [s]；<=0 表示按关节速度上限自动估算。
+# 自动估算得到的最短时长会写回 trajectory_duration，调用者可以据此核对。
+float64 duration
+
+---
+
+# ============================== 响应 ==============================
+
+# 错误码，三段语义：
+#   0      成功（轨迹跑完且终点残差在 tracking_tolerance 之内）
+#   1..8   控制节点自身的失败：
+#             1 = 还没收到 /joint_states，无法确定当前关节状态
+#             2 = 请求不合法（task_type/duration/goal_joint 长度）
+#             3 = 解算失败（目标越界、IK 不收敛、接近奇异……见 message）
+#             4 = 参数/配置错误
+#             5 = 控制器未接手轨迹（kdl_effort_controller 未激活？关节名不匹配？）
+#             6 = 等待执行结果超时
+#             7 = 已有任务在执行（本期不支持排队/取消）
+#             8 = 轨迹时间跑完但终点未到位（残差超阈值；常见于自碰撞卡住或力矩限幅）
+#   <0     预留：控制器/硬件返回的错误码
+int32 error_code
+
+# = (error_code == 0)，便于调用者只判一个字段
+bool success
+
+# 中文说明：失败原因，或成功时的执行结果摘要
+string message
+
+# 实际下发的轨迹总时长 [s]（duration <= 0 自动估算时，这里是估算结果）
+float64 trajectory_duration

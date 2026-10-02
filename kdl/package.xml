@@ -14,11 +14,39 @@
   <depend>urdf</depend>
   <depend>kdl_parser</depend>
   <depend>orocos_kdl_vendor</depend>
+
+  <!-- ===== 控制节点 / 力矩控制器插件用到的消息 / 库 ===== -->
+  <depend>geometry_msgs</depend>      <!-- ControlTask.srv 里的 Pose -->
+  <depend>std_msgs</depend>           <!-- ControlStatus.msg 里的 Header -->
+  <depend>sensor_msgs</depend>        <!-- 订阅 /joint_states 取当前关节状态 -->
+  <depend>trajectory_msgs</depend>    <!-- 参考轨迹 trajectory_msgs/JointTrajectory -->
+  <depend>ament_index_cpp</depend>    <!-- 按包名定位 share/kdl_tools/model/*.urdf -->
+  <depend>controller_interface</depend>  <!-- 力矩控制器插件基类 -->
+  <depend>pluginlib</depend>             <!-- 控制器插件导出 -->
+  <depend>realtime_tools</depend>        <!-- RT 缓冲 / 实时状态发布 -->
+  <depend>yaml_cpp_vendor</depend>       <!-- 解析 config/mujoco_pids.yaml -->
+
+  <!-- ===== 本包自己生成 service 接口（kdl_tools/srv/ControlTask） =====
+       rosidl 生成需要这对 build/exec 依赖，并且必须声明本包属于
+       rosidl_interface_packages 组，否则 ament 索引不会把生成的消息注册进去。 -->
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
   <!-- urdf::Model::initFile/initString 依赖 urdf_parser_plugin 插件在运行时被加载 -->
   <exec_depend>urdf_parser_plugin</exec_depend>
   <!-- 画图脚本 plot_quintic.py 只用 numpy 读 CSV、matplotlib 出图 -->
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-matplotlib</exec_depend>
+
+  <!-- ===== ros2_control / MuJoCo 仿真链路（只在跑 launch 时需要） =====
+       用 src/ros2_control/ 下的 launch + config 把 MuJoCo 当成 ros2_control 的
+       硬件接口时，才需要下面这些包；KDL 教学库本身不依赖它们。 -->
+  <exec_depend>mujoco_ros2_control</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>rviz2</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

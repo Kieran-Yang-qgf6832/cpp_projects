@@ -1,0 +1,34 @@
+<mujoco model="robotic_arm_torque_scene">
+  <!-- torque 版场景入口：与 scene.xml 一致，只把 include 换成 torque 版本体。
+
+       显式写死 timestep=0.002（500 Hz 物理步），与 controllers.yaml 的
+       controller_manager.update_rate=500 构成 1:1 整数分频：
+       每个控制周期正好推进一步物理仿真，力矩环的相位滞后最小。
+       不写时 MuJoCo 默认也是 0.002，但写出来能保证以后换版本/换机器时不变。 -->
+  <option gravity="0 0 -9.81" timestep="0.002"/>
+  <include file="robotic_arm_torque.xml"/>
+
+  <statistic center="0.35 0 0.25" extent="1.2"/>
+
+  <visual>
+    <headlight diffuse="0.2 0.2 0.2" ambient="0.35 0.35 0.35" specular="0.1 0.1 0.1"/>
+    <rgba haze="0 0 0 0"/>
+    <global offwidth="1920" offheight="1080"/>
+  </visual>
+
+  <default>
+    <geom group="2" rgba="0.5 0.5 0.9 0.35"/>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.35 0.55 0.75" rgb2="0.05 0.08 0.1" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.25 0.3" rgb2="0.12 0.16 0.2"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <geom name="ground" type="plane" size="50 50 0.3" pos="0 0 0" material="groundplane" contype="0" conaffinity="0"/>
+    <light name="main_light" pos="0 0 4" dir="0 0 -1" directional="true"/>
+  </worldbody>
+</mujoco>

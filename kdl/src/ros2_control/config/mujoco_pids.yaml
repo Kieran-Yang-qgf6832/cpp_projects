@@ -1,0 +1,82 @@
+# =============================================================================
+# 可选：把"位置/速度指令"在插件内部换算成力矩的 PID 参数
+# -----------------------------------------------------------------------------
+# 什么时候需要这份文件：
+#   MJCF 里的执行器是 <motor> / <velocity> / <general>（这些原生只接受力矩或
+#   速度指令），却想给 ros2_control 的 position（或 velocity）命令接口用时，
+#   插件会用这里的 PID 做闭环，把指令转成力矩写进 ctrl。
+#
+# 什么时候不需要：
+#   本方案默认的 MJCF 用的是 <position> 执行器 —— MuJoCo 自带 PD，原生接受
+#   位置指令，不经过这里，所以 xacro 里 use_position_pid 默认是 false。
+#   如果把 MJCF 换回 <motor> 并想继续用位置指令，就把 use_position_pid 打开：
+#     ros2 launch kdl_tools arm_mujoco_control.launch.py use_position_pid:=true
+#
+# 节点名用 /** 通配，参数挂在插件自己创建的 mujoco_ros2_control_node 上。
+# 键名 = 关节名（插件用 actuator_data.joint_name 去查）。
+#
+# 调参经验（按 p → d → i 的顺序，一次只动一个）：
+#   1. 先把 i、d 置 0，从小到大加 p，直到位置跟随变快但不振荡；
+#   2. 加 d 压住超调，一般取 p 的 10%~20%；
+#   3. 有稳态下沉（重力带来的静差）才加一点 i，并用 u_clamp/i_clamp 限幅。
+#   u_clamp 建议不超过 URDF 里该关节的 <limit effort>。
+# =============================================================================
+/**:
+  ros__parameters:
+    pid_gains:
+      position:
+        joint1:
+          p: 110.0
+          i: 0.0
+          d: 15.0
+          u_clamp_max: 50.0
+          u_clamp_min: -50.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+        joint2:
+          p: 300.0
+          i: 0.0
+          d: 40.0
+          u_clamp_max: 50.0
+          u_clamp_min: -50.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+        joint3:
+          p: 70.0
+          i: 0.0
+          d: 10.0
+          u_clamp_max: 50.0
+          u_clamp_min: -50.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+        joint4:
+          p: 2.0
+          i: 0.0
+          d: 0.25
+          u_clamp_max: 100.0
+          u_clamp_min: -100.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+        joint5:
+          p: 0.4
+          i: 0.0
+          d: 0.05
+          u_clamp_max: 50.0
+          u_clamp_min: -50.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+        joint6:
+          p: 0.3
+          i: 0.0
+          d: 0.03
+          u_clamp_max: 50.0
+          u_clamp_min: -50.0
+          i_clamp_max: 1.0
+          i_clamp_min: -1.0
+      velocity:
+        joint1: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint2: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint3: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint4: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 100.0, u_clamp_min: -100.0}
+        joint5: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint6: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
