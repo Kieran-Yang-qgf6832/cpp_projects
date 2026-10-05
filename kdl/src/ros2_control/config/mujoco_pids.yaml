@@ -28,7 +28,7 @@
         joint1:
           p: 110.0
           i: 0.0
-          d: 15.0
+          d: 1.0  # 15.0
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0
@@ -44,7 +44,7 @@
         joint3:
           p: 70.0
           i: 0.0
-          d: 10.0
+          d: 5.0  # 10.0
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0

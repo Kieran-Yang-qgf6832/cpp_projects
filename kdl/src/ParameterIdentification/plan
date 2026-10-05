@@ -1,0 +1,6 @@
+参数辨识设计要求：
+1. 全部参数辨识功能再 src/Parameterdentification 文件夹下完成，可以引用其他文件夹下的内容，但不能修改其他文件夹下的内容。
+2. 在 src/Parameterdentification/identify_trajectory 文件夹下生成傅里叶级数激励轨迹
+3. 在 src/Parameterdentification/identification 文件夹下完成参数辨识的求解部分
+4. 在 src/Parameterdentification/draw 文件夹下完成包括但不限于图像绘制等内容
+

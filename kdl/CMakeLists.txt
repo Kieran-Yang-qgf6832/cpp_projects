@@ -214,12 +214,114 @@ target_compile_definitions(control_demo PRIVATE
 target_link_libraries(control_demo PRIVATE kdl_control_lib)
 
 # ---------------------------------------------------------------------------
+# 参数辨识：src/ParameterIdentification/identification
+#   kdl_regressor  构造回归矩阵 Y：τ = Y·β（差分法，见头文件注释）
+#   kdl_lsq        基参数提取（QR 列主元 + SVD 判秩）+ 最小二乘求解
+# 依赖 Tools（URDF -> 链）与 Dynamics（inverseDynamics）。
+# 激励轨迹、数据采集节点与绘图分别在 identify_trajectory / 节点 / draw 下，
+# 本模块目前只落地这两个核心组件。
+# ---------------------------------------------------------------------------
+add_library(kdl_identification_lib
+  src/ParameterIdentification/identification/src/kdl_regressor.cpp
+  src/ParameterIdentification/identification/src/kdl_lsq.cpp
+)
+
+target_include_directories(kdl_identification_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/identification/include>
+  $<INSTALL_INTERFACE:include/kdl_tools>
+)
+
+target_link_libraries(kdl_identification_lib PUBLIC
+  rclcpp::rclcpp
+  orocos-kdl
+  kdl_tools_lib
+  kdl_dynamics_lib
+)
+
+# 离线自检示例：不需要 ROS 运行时，直接用 URDF 真值验证"回归矩阵 + 最小二乘"。
+add_executable(regressor_lsq_demo
+  src/ParameterIdentification/identification/example/regressor_lsq_demo.cpp
+)
+target_compile_definitions(regressor_lsq_demo PRIVATE
+  KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
+)
+target_link_libraries(regressor_lsq_demo PRIVATE kdl_identification_lib)
+
+# ---------------------------------------------------------------------------
+# 激励轨迹：src/ParameterIdentification/identify_trajectory
+#   kdl_fourier  周期傅里叶级数轨迹 + 约束校验/缩放 + 可观测性优化
+# 依赖 kdl_identification_lib（要用回归矩阵评估可观测性）。
+# ---------------------------------------------------------------------------
+add_library(kdl_identify_trajectory_lib
+  src/ParameterIdentification/identify_trajectory/src/kdl_fourier.cpp
+)
+
+target_include_directories(kdl_identify_trajectory_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/identify_trajectory/include>
+  $<INSTALL_INTERFACE:include/kdl_tools>
+)
+
+target_link_libraries(kdl_identify_trajectory_lib PUBLIC
+  rclcpp::rclcpp
+  orocos-kdl
+  kdl_identification_lib
+)
+
+# 激励轨迹示例：从 URDF 读限位 -> 生成/优化傅里叶轨迹 -> 打印可观测性 -> 导出 CSV。
+add_executable(fourier_demo
+  src/ParameterIdentification/identify_trajectory/example/fourier_demo.cpp
+)
+target_compile_definitions(fourier_demo PRIVATE
+  KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
+)
+target_link_libraries(fourier_demo PRIVATE kdl_identify_trajectory_lib)
+
+# ---------------------------------------------------------------------------
+# 参数辨识节点：src/ParameterIdentification/node/kdl_identify_node.cpp
+#   优化激励 -> 下发 /control_reference -> 采集 /mujoco_actuators_states
+#   -> 差分求 q̈ -> 拼回归矩阵（含摩擦列）-> 最小二乘 -> 打印 + 存 CSV。
+# ---------------------------------------------------------------------------
+add_executable(kdl_identify_node
+  src/ParameterIdentification/node/kdl_identify_node.cpp
+)
+# 参数辨识的默认输出目录（源码树的 draw 文件夹）：
+#   · 编译期传给节点（样本/参数 CSV 落在这里）
+#   · configure_file 替换进画图脚本（图片也落在这里）
+set(KDL_IDENTIFY_DRAW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/draw")
+target_compile_definitions(kdl_identify_node PRIVATE
+  KDL_IDENTIFY_DRAW_DIR="${KDL_IDENTIFY_DRAW_DIR}"
+)
+target_link_libraries(kdl_identify_node
+  kdl_identify_trajectory_lib        # 傅里叶激励
+  kdl_identification_lib             # 回归矩阵 + 最小二乘
+  kdl_tools_lib                      # URDF -> 链 / 限位读取
+  kdl_dynamics_lib                   # 前馈力矩 inverseDynamics
+  kdl_interpolation_lib              # 入场段五次多项式
+  rclcpp::rclcpp
+  ament_index_cpp::ament_index_cpp
+  sensor_msgs::sensor_msgs           # /mujoco_actuators_states
+  trajectory_msgs::trajectory_msgs   # /control_reference
+  std_srvs::std_srvs                 # ~/run 触发
+)
+# 注意：kdl_identify_node 用了本包生成的 kdl_tools/msg/control_status.hpp，
+# typesupport 的链接放在下面 rosidl_get_typesupport_target 之后（那时变量才有值）。
+
+install(TARGETS kdl_identify_node
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+# 参数辨识的 launch（复用 ros2_control 的仿真 launch，再追加辨识节点）。
+install(DIRECTORY src/ParameterIdentification/launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# ---------------------------------------------------------------------------
 # 安装
 # ---------------------------------------------------------------------------
 install(TARGETS kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
-        kdl_control_lib
+        kdl_control_lib kdl_identification_lib kdl_identify_trajectory_lib
         build_from_urdf fk_ik_demo vel_acc_demo dynamics_demo quintic_demo cartesian_demo
-        control_demo
+        control_demo regressor_lsq_demo fourier_demo
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -244,6 +346,14 @@ install(DIRECTORY src/Interpolation/include/
 # control 的 include/ 下有 router/ 与 tasks/ 两个子目录，安装时必须保持原样，
 # 否则消费者写的 #include "router/kdl_task_router.hpp" 在安装后找不到。
 install(DIRECTORY src/control/include/
+  DESTINATION include/kdl_tools
+)
+
+# 参数辨识模块的头文件（平铺：kdl_regressor.hpp / kdl_lsq.hpp / kdl_fourier.hpp）。
+install(DIRECTORY src/ParameterIdentification/identification/include/
+  DESTINATION include/kdl_tools
+)
+install(DIRECTORY src/ParameterIdentification/identify_trajectory/include/
   DESTINATION include/kdl_tools
 )
 
@@ -349,6 +459,9 @@ target_link_libraries(kdl_control_node
 )
 target_link_libraries(kdl_control_node "${cpp_typesupport_target}")
 
+# 辨识节点也要拿本包生成的 msg（kdl_tools/msg/control_status.hpp）。
+target_link_libraries(kdl_identify_node "${cpp_typesupport_target}")
+
 install(TARGETS kdl_effort_controller
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -438,9 +551,25 @@ install(PROGRAMS src/Interpolation/scripts/plot_cartesian.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# 参数辨识的画图脚本：读 kdl_identify_node 导出的样本/参数 CSV，
+# 出力矩对比、残差、基参数与摩擦图。同样要 RENAME 成无扩展名。
+#
+# 安装的是 configure_file 生成的副本：脚本里默认读写目录写的是 @KDL_IDENTIFY_DRAW_DIR@，
+# 装到 install/ 后它算不出源码树的 draw 目录，所以要在安装前把绝对路径替换进去。
+# （直接在源码树里跑这个 .py 时占位符未替换，脚本会退回"自己所在目录"，也就是 draw 目录。）
+configure_file(
+  src/ParameterIdentification/draw/plot_identification.py
+  ${CMAKE_CURRENT_BINARY_DIR}/plot_identification
+  @ONLY
+)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/plot_identification
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_export_include_directories(include/kdl_tools)
 ament_export_libraries(kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
-                      kdl_control_lib kdl_state_machine_lib)
+                      kdl_control_lib kdl_state_machine_lib kdl_identification_lib
+                      kdl_identify_trajectory_lib)
 ament_export_dependencies(rclcpp urdf kdl_parser orocos_kdl_vendor)
 
 ament_package()
