@@ -26,6 +26,7 @@ find_package(controller_interface REQUIRED)  # 力矩控制器插件基类
 find_package(pluginlib REQUIRED)             # 控制器插件导出
 find_package(realtime_tools REQUIRED)        # RT 缓冲 / 实时状态发布
 find_package(yaml-cpp REQUIRED)              # 解析 config/mujoco_pids.yaml
+find_package(std_srvs REQUIRED)              # 状态机的 ~/start、~/stop（std_srvs/Trigger）
 
 # ---------------------------------------------------------------------------
 # 教学库：src/Tools 下的 URDF -> KDL 工具
@@ -246,6 +247,12 @@ install(DIRECTORY src/control/include/
   DESTINATION include/kdl_tools
 )
 
+# 状态机的头文件是平铺的（include/ 下只有 kdl_state_machine.hpp 这一个头），
+# 安装后消费者写 #include "kdl_state_machine.hpp"（与 Kinematics/Dynamics 一致）。
+install(DIRECTORY src/StateMachine/include/
+  DESTINATION include/kdl_tools
+)
+
 # 把 URDF / STL 一起装到 share/kdl_tools/model，示例运行时按此路径查找。
 install(DIRECTORY src/model/
   DESTINATION share/${PROJECT_NAME}/model
@@ -353,6 +360,67 @@ install(TARGETS kdl_control_node
 )
 
 # ---------------------------------------------------------------------------
+# 状态机层：src/StateMachine —— 独立的任务发送函数 + 调度"什么时候发哪一条"
+#   include/kdl_state_machine.hpp   唯一的头文件：
+#                                     一、任务的定义（TaskKind/TaskTarget/TaskResult）
+#                                     二、任务发送的自由函数 + 调用者持有的 TaskHandle
+#                                     三、任务状态机（KdlStateMachine）
+#   src/kdl_state_machine.cpp       全部实现（发送函数 + 状态机，不定义任何任务链条）
+#   src/node/kdl_state_machine_node.cpp  可执行入口（main，与库实现分开放）
+#
+# 它只依赖 control 层的 srv/msg（/control_task 与控制器状态话题），不认识 KDL 轨迹，
+# 也不需要 URDF / KDL 链（目标由调用者给出，不由状态机推导）。
+# ---------------------------------------------------------------------------
+add_library(kdl_state_machine_lib
+  src/StateMachine/src/kdl_state_machine.cpp
+)
+
+target_include_directories(kdl_state_machine_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/StateMachine/include>
+  $<INSTALL_INTERFACE:include/kdl_tools>
+)
+
+target_link_libraries(kdl_state_machine_lib PUBLIC
+  rclcpp::rclcpp                      # 节点、定时器、service client
+  std_msgs::std_msgs                  # ~/state 话题
+  std_srvs::std_srvs                  # ~/start、~/stop
+  sensor_msgs::sensor_msgs            # 订阅 /joint_states（判断状态广播器是否 active）
+  geometry_msgs::geometry_msgs        # TaskTarget 里的 Pose
+)
+
+# 本包自己生成的 srv/msg（kdl_tools/srv/control_task.hpp 等）必须显式链 typesupport，
+# 理由见下面 rosidl_get_typesupport_target 处的注释。
+# 这里用 PUBLIC：公共头里就 #include 了生成的 srv/msg 头，
+# 所以消费它的可执行文件也必须拿到这些 include 目录。
+target_link_libraries(kdl_state_machine_lib PUBLIC "${cpp_typesupport_target}")
+
+add_executable(kdl_state_machine_node
+  src/StateMachine/src/node/kdl_state_machine_node.cpp
+)
+
+target_link_libraries(kdl_state_machine_node
+  kdl_state_machine_lib
+  rclcpp::rclcpp
+)
+
+# 作业流程示例：用状态机的任务启动函数（startJointTask / startCartesianTask）
+# 串起多步流程；状态机单飞行，所以靠 `~/state` 话题做完成信号，等上一条进终态再发下一条。
+add_executable(task_logic
+  src/StateMachine/src/task_logic.cpp
+)
+
+target_link_libraries(task_logic
+  kdl_state_machine_lib
+  rclcpp::rclcpp
+)
+
+install(TARGETS kdl_state_machine_lib kdl_state_machine_node task_logic
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+# ---------------------------------------------------------------------------
 # 画图脚本：读 quintic_demo 导出的 CSV 画曲线
 # ---------------------------------------------------------------------------
 # 必须 RENAME 成不带扩展名的 plot_quintic：
@@ -372,7 +440,7 @@ install(PROGRAMS src/Interpolation/scripts/plot_cartesian.py
 
 ament_export_include_directories(include/kdl_tools)
 ament_export_libraries(kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
-                      kdl_control_lib)
+                      kdl_control_lib kdl_state_machine_lib)
 ament_export_dependencies(rclcpp urdf kdl_parser orocos_kdl_vendor)
 
 ament_package()

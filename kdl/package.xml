@@ -25,6 +25,7 @@
   <depend>pluginlib</depend>             <!-- 控制器插件导出 -->
   <depend>realtime_tools</depend>        <!-- RT 缓冲 / 实时状态发布 -->
   <depend>yaml_cpp_vendor</depend>       <!-- 解析 config/mujoco_pids.yaml -->
+  <depend>std_srvs</depend>              <!-- 状态机的 ~/start、~/stop（std_srvs/Trigger） -->
 
   <!-- ===== 本包自己生成 service 接口（kdl_tools/srv/ControlTask） =====
        rosidl 生成需要这对 build/exec 依赖，并且必须声明本包属于

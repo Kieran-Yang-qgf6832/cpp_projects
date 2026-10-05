@@ -1,0 +1,161 @@
+[INFO] [launch]: All log files can be found below /home/kangy/.ros/log/2026-10-04-17-11-37-146990-kangy-ThinkBook-16-G6-IMH-180687
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-2]: process started with pid [180698]
+[INFO] [kdl_control_node-5]: process started with pid [180701]
+[INFO] [robot_state_publisher-1]: process started with pid [180697]
+[INFO] [spawner-3]: process started with pid [180699]
+[INFO] [spawner-4]: process started with pid [180700]
+[kdl_control_node-5] [0m[INFO] [1791105097.430549392] [kdl_tools]: kdl_parser::treeFromUrdfModel succeeded: robotic_arm[0m
+[kdl_control_node-5] [0m[INFO] [1791105097.430960766] [kdl_tools]: Chain built: base_link -> link6 (6 segments, 6 joints)[0m
+[kdl_control_node-5] [0m[INFO] [1791105097.433080576] [kdl_tools]: urdf::Model::initFile succeeded: /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/model/robotic_arm.urdf[0m
+[kdl_control_node-5] [0m[INFO] [1791105097.433667012] [control_node]: RobotContext 装配完成：6 个关节，URDF 限位 + 参数限位都已就位[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.435648783] [controller_manager]: Using ROS clock for triggering controller manager cycles.[0m
+[kdl_control_node-5] [0m[INFO] [1791105097.436609532] [control_node]: 控制节点就绪：service=/control_task，reference=/control_reference，status=/kdl_effort_controller/status
+[kdl_control_node-5]   URDF      : /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/model/robotic_arm.urdf
+[kdl_control_node-5]   轨迹采样  : point_dt=0.0020 s（500 个点/秒，上限 50000 点）
+[kdl_control_node-5]   自动定时  : duration<=0 时由底层估算，但不短于 min_duration=1.000 s
+[kdl_control_node-5]   关节映射  : joint1(链#0), joint2(链#1), joint3(链#2), joint4(链#3), joint5(链#4), joint6(链#5)[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.439978020] [controller_manager]: Subscribing to '/robot_description' topic for robot description.[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.440087056] [controller_manager]: update rate is 500 Hz[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.440105290] [controller_manager]: Overruns handling is : enabled[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.440114376] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50[0m
+[ros2_control_node-2] [33m[WARN] [1791105097.440214019] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.[0m
+[robot_state_publisher-1] [INFO] [1791105097.443756745] [robot_state_publisher]: Robot initialized
+[ros2_control_node-2] [0m[INFO] [1791105097.445264938] [controller_manager]: Received robot description from topic.[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.445360092] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.448273061] [controller_manager]: Loading hardware 'arm_hw' [0m
+[ros2_control_node-2] [0m[INFO] [1791105097.454897866] [controller_manager]: Loaded hardware 'arm_hw' from plugin 'mujoco_ros2_control/MujocoSystemInterface'[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.455040788] [controller_manager]: Initialize hardware 'arm_hw' [0m
+[ros2_control_node-2] [0m[INFO] [1791105097.459060283] [MujocoSystemInterface]: Loading 'mujoco_model' from: '/home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/model/scene_torque.xml'[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.459125122] [MujocoSystemInterface]: Constructing node and executor...[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.462535854] [MujocoSystemInterface]: Executor thread started.[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.462603284] [MujocoSimulation]: Running the simulation at 100.00 percent speed[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.462619207] [MujocoSimulation]: Scanning plugin libraries...[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.462787779] [MujocoSimulation]: Initializing simulation...[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.660798207] [MujocoSimulation]: Starting the MuJoCo rendering thread...[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.660837606] [MujocoSimulation]: Sim ready, continuing initialization...[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.660941116] [MujocoSimulation]: Constructing clock publisher.[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.665290645] [MujocoSimulation]: Created reset_world service at: /mujoco_ros2_control_node/reset_world[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.665796972] [MujocoSimulation]: Created set_pause service at: /mujoco_ros2_control_node/set_pause[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.666205157] [MujocoSimulation]: Created step_simulation service at: /mujoco_ros2_control_node/step_simulation[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.666816457] [MujocoSimulation]: Created set_free_joint_state service at: /mujoco_ros2_control_node/set_free_joint_state[0m
+[ros2_control_node-2] [0m[INFO] [1791105097.666847479] [MujocoSimulation]: Loading model...[0m
+[spawner-4] [INFO] [1791105097.979688168] [spawner_kdl_effort_controller]: waiting for service /controller_manager/list_controllers to become available...
+[ros2_control_node-2] [0m[INFO] [1791105098.185925795] [MujocoSystemInterface]: Constructing publishers.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.186849952] [MujocoSystemInterface]: Registering actuators.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.186882884] [MujocoSystemInterface]: override_start_position_file not passed. Loading initial positions from ros2_control xacro.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.186891256] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint1' for joint 'joint1'[0m
+[ros2_control_node-2] [33m[WARN] [1791105098.188113179] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.188746047] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.188779845] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint2' for joint 'joint2'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.189290363] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.189953634] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.189978726] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint3' for joint 'joint3'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.190501215] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.191178358] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.191208378] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint4' for joint 'joint4'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.191888263] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.192617508] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.192643473] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint5' for joint 'joint5'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.193419833] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.195379626] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.195482894] [MujocoSystemInterface]: Registering MuJoCo actuator 'joint6' for joint 'joint6'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.197404829] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [33m[WARN] [1791105098.199260480] [mujoco_ros2_control_node]: Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199331804] [MujocoSystemInterface]: Registering joints and sensors.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199352851] [MujocoSystemInterface]: Registering joints...[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199368405] [MujocoSystemInterface]: Found the actuator 'joint1' for joint 'joint1'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199410893] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor1'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199419565] [MujocoSystemInterface]: Found the actuator 'joint2' for joint 'joint2'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199424990] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor2'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199429320] [MujocoSystemInterface]: Found the actuator 'joint3' for joint 'joint3'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199434785] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor3'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199440221] [MujocoSystemInterface]: Found the actuator 'joint4' for joint 'joint4'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199450831] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor4'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199456661] [MujocoSystemInterface]: Found the actuator 'joint5' for joint 'joint5'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199461720] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor5'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199466700] [MujocoSystemInterface]: Found the actuator 'joint6' for joint 'joint6'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.199471713] [MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'motor6'[0m
+[ros2_control_node-2] Using the legacy anti-windup technique is deprecated. This option will be removed by the ROS 2 Kilted Kaiju release.
+[ros2_control_node-2] [0m[INFO] [1791105098.200730359] [MujocoSimulation]: Starting the MuJoCo physics thread...[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.200942103] [MujocoSystemInterface]: No 'mujoco_plugins' parameter found![0m
+[ros2_control_node-2] [0m[INFO] [1791105098.200975615] [MujocoSystemInterface]: on_init complete.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201023700] [controller_manager]: Successful initialization of hardware 'arm_hw'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201317268] [controller_manager]: Activating component 'arm_hw'.[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201336289] [resource_manager]: 'configure' hardware 'arm_hw' [0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201347988] [resource_manager]: Successful 'configure' of hardware 'arm_hw'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201359172] [resource_manager]: 'activate' hardware 'arm_hw' [0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201368547] [MujocoSystemInterface]: Activating MuJoCo hardware interface and starting Simulate threads...[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201380274] [resource_manager]: Successful 'activate' of hardware 'arm_hw'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201447844] [controller_manager]: Registering statistics for : arm_hw[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.201537184] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...[0m
+[spawner-4] [INFO] [1791105098.240896874] [spawner_kdl_effort_controller]: Setting controller param "params_file" to "['/home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml']" for kdl_effort_controller
+[ros2_control_node-2] [0m[INFO] [1791105098.248331069] [controller_manager]: Loading controller : 'kdl_effort_controller' of type 'kdl_tools/KdlEffortController'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.248446149] [controller_manager]: Loading controller 'kdl_effort_controller'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.255504605] [controller_manager]: Controller 'kdl_effort_controller' node arguments: --ros-args --params-file /tmp/launch_params_41m9gsqd --params-file /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml --params-file /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml --param use_sim_time:=true [0m
+[spawner-4] [INFO] [1791105098.267753447] [spawner_kdl_effort_controller]: Loaded kdl_effort_controller
+[ros2_control_node-2] [0m[INFO] [1791105098.269090940] [controller_manager]: Configuring controller: 'kdl_effort_controller'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.271409702] [kdl_tools]: kdl_parser::treeFromUrdfModel succeeded: robotic_arm[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.271560924] [kdl_tools]: Chain built: base_link -> link6 (6 segments, 6 joints)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.272741426] [kdl_tools]: urdf::Model::initFile succeeded: /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/model/robotic_arm.urdf[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280742473] [kdl_effort_controller]: 已配置：6 个关节，参考话题 /control_reference，增益来自 /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/mujoco_pids.yaml
+[ros2_control_node-2]   重力前馈：inverseDynamics(q,0,0)（已是补偿力矩，不取负）[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280810267] [kdl_effort_controller]:   joint1: p=110.000 i=0.000 d=15.000 u=[-50.000,50.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280838103] [kdl_effort_controller]:   joint2: p=300.000 i=0.000 d=40.000 u=[-50.000,50.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280857046] [kdl_effort_controller]:   joint3: p=70.000 i=0.000 d=10.000 u=[-50.000,50.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280873735] [kdl_effort_controller]:   joint4: p=2.000 i=0.000 d=0.250 u=[-100.000,100.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280891026] [kdl_effort_controller]:   joint5: p=0.400 i=0.000 d=0.050 u=[-50.000,50.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.280908099] [kdl_effort_controller]:   joint6: p=0.300 i=0.000 d=0.030 u=[-50.000,50.000] i_clamp=[-1.000,1.000][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.283080730] [controller_manager]: Activating controllers: [ kdl_effort_controller ][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591106451] [MujocoSystemInterface]: Joint joint1: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591210234] [MujocoSystemInterface]: Joint joint2: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591221619] [MujocoSystemInterface]: Joint joint3: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591230223] [MujocoSystemInterface]: Joint joint4: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591239257] [MujocoSystemInterface]: Joint joint5: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591247193] [MujocoSystemInterface]: Joint joint6: effort control enabled (position, velocity disabled)[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.591869742] [kdl_effort_controller]: 已激活：进入重力锁位[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.592081888] [controller_manager]: Successfully switched controllers![0m
+[spawner-4] [INFO] [1791105098.594913933] [spawner_kdl_effort_controller]: Configured and activated kdl_effort_controller
+[INFO] [spawner-4]: process has finished cleanly [pid 180700]
+[spawner-3] [INFO] [1791105098.968149231] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml']" for joint_state_broadcaster
+[ros2_control_node-2] [0m[INFO] [1791105098.974694940] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.974756865] [controller_manager]: Loading controller 'joint_state_broadcaster'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.977042994] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args --params-file /tmp/launch_params_41m9gsqd --params-file /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml --params-file /home/kangy/MyProjects/cpp_projects/kdl/install/kdl_tools/share/kdl_tools/config/controllers.yaml --param use_sim_time:=true [0m
+[spawner-3] [INFO] [1791105098.986636822] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-2] [0m[INFO] [1791105098.987573422] [controller_manager]: Configuring controller: 'joint_state_broadcaster'[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.987701373] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published[0m
+[ros2_control_node-2] [0m[INFO] [1791105098.994986461] [controller_manager]: Activating controllers: [ joint_state_broadcaster ][0m
+[ros2_control_node-2] [0m[INFO] [1791105098.997266383] [controller_manager]: Successfully switched controllers![0m
+[spawner-3] [INFO] [1791105099.000917444] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[INFO] [spawner-3]: process has finished cleanly [pid 180699]
+[kdl_control_node-5] [0m[INFO] [1791105121.060929689] [control_node]: 解算成功：joint_space，轨迹时长 3.0000 s[0m
+[kdl_control_node-5] [0m[INFO] [1791105121.069386873] [control_node]: 已下发参考：1501 个点，时长 3.0000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105121.071505639] [kdl_effort_controller]: 收到参考轨迹：1501 点，3.000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105121.072593690] [kdl_effort_controller]: 开始执行参考轨迹：3.000 s / 1501 点[0m
+[ros2_control_node-2] [0m[INFO] [1791105124.072456647] [kdl_effort_controller]: 参考轨迹执行完毕，转入重力锁位[0m
+[kdl_control_node-5] [0m[INFO] [1791105135.961613125] [control_node]: 解算成功：joint_space，轨迹时长 3.0000 s[0m
+[kdl_control_node-5] [0m[INFO] [1791105135.969564104] [control_node]: 已下发参考：1501 个点，时长 3.0000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105135.971367808] [kdl_effort_controller]: 收到参考轨迹：1501 点，3.000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105135.971418210] [kdl_effort_controller]: 开始执行参考轨迹：3.000 s / 1501 点[0m
+[ros2_control_node-2] [0m[INFO] [1791105138.968842093] [kdl_effort_controller]: 参考轨迹执行完毕，转入重力锁位[0m
+[kdl_control_node-5] [0m[INFO] [1791105325.688518846] [control_node]: 解算成功：joint_space，轨迹时长 3.0000 s[0m
+[kdl_control_node-5] [0m[INFO] [1791105325.696354053] [control_node]: 已下发参考：1501 个点，时长 3.0000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105325.698277681] [kdl_effort_controller]: 收到参考轨迹：1501 点，3.000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105325.698851437] [kdl_effort_controller]: 开始执行参考轨迹：3.000 s / 1501 点[0m
+[ros2_control_node-2] [0m[INFO] [1791105328.698639025] [kdl_effort_controller]: 参考轨迹执行完毕，转入重力锁位[0m
+[kdl_control_node-5] [0m[INFO] [1791105339.487911526] [control_node]: 解算成功：joint_space，轨迹时长 3.0000 s[0m
+[kdl_control_node-5] [0m[INFO] [1791105339.499491989] [control_node]: 已下发参考：1501 个点，时长 3.0000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105339.501243297] [kdl_effort_controller]: 收到参考轨迹：1501 点，3.000 s[0m
+[ros2_control_node-2] [0m[INFO] [1791105339.502856643] [kdl_effort_controller]: 开始执行参考轨迹：3.000 s / 1501 点[0m
+[ros2_control_node-2] [0m[INFO] [1791105342.502989982] [kdl_effort_controller]: 参考轨迹执行完毕，转入重力锁位[0m
