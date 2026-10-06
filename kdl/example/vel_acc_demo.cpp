@@ -200,7 +200,7 @@ int main(int argc, char ** argv)
   std::cout << "  与 qddot 的往返偏差(应≈0): " << maxAbsDiff(acc_wdls.qddot, qddot) << "\n";
 
   // ---- 6. 奇异位形：σ_min 与两种求逆的差异 ----
-  // 全零位形下 joint5 = 0，腕部 joints 4/6 的轴接近共线，是典型的腕部奇异。
+  // 全零位形比工作位形更接近奇异（σ_min 更小），用它放大伪逆与阻尼求逆的差异。
   std::cout << "\n>>> 6) 奇异位形对比\n";
   KDL::JntArray q_singular(n);  // 全零
 

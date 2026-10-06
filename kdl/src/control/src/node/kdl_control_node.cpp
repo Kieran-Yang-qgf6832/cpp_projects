@@ -328,7 +328,7 @@ bool ControlNode::declareAndReadParameters(std::string & message)
   // 关节顺序必须与 controllers.yaml 里 kdl_effort_controller.joints 一致 ——
   // 那是 JointTrajectory 消息的语义顺序（顺序不对外暴露在消息里，只能约定）。
   controller_joints_ = declare_parameter<std::vector<std::string>>(
-    "joint_names", {"joint1", "joint2", "joint3", "joint4", "joint5", "joint6"});
+    "joint_names", {"joint1", "joint2", "joint3", "joint4"});
 
   point_dt_ = declare_parameter<double>("point_dt", 0.002);
   result_timeout_margin_ = declare_parameter<double>("result_timeout_margin", 5.0);

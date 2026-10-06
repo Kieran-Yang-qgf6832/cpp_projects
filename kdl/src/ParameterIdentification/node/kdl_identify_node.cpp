@@ -27,7 +27,9 @@
 //      前若干个周期，只取 measure_periods 个周期做辨识。
 //   3) **MuJoCo 的关节阻尼不在 qfrc_actuator 里**：阻尼走的是 qfrc_passive，
 //      所以实测 τ 满足 τ = Y·β + diag(d)·q̇。默认打开 use_friction_model，
-//      多辨识 n 个粘性 + n 个库伦系数，正好能把 MJCF 里 joint6 的 damping=2.0 找回来。
+//      多辨识 n 个粘性 + n 个库伦系数，正好能把 MJCF 里的关节阻尼找回来。
+//      （注意：当前 4 轴模型的 URDF 没有 <dynamics>、MJCF 也未设关节阻尼，
+//        所以这两项会辨识到 ≈0 —— 这是符合预期的，不是辨识失败。）
 // ===========================================================================
 
 #include <algorithm>
@@ -257,7 +259,7 @@ void IdentifyNode::readParameters()
   actuator_topic_ =
     declare_parameter<std::string>("actuator_states_topic", "/mujoco_actuators_states");
   joint_names_ = declare_parameter<std::vector<std::string>>(
-    "joint_names", {"joint1", "joint2", "joint3", "joint4", "joint5", "joint6"});
+    "joint_names", {"joint1", "joint2", "joint3", "joint4"});
 
   point_dt_ = declare_parameter<double>("point_dt", 0.002);
   lead_in_time_ = declare_parameter<double>("lead_in_time", 2.0);

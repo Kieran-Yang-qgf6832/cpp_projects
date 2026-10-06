@@ -190,11 +190,12 @@ int main(int argc, char ** argv)
   const unsigned int n = ctx.chain.getNrOfJoints();
   ctx.joint_limits.max_velocity = filled(n, 1.0);  // rad/s
 
-  // 加速度上限**不能六个关节一刀切**：腕部关节的力臂只有 0.1 m 量级，末端要做出
-  // 2 m/s² 的加速度，腕关节就得转 20 rad/s² 左右（q̈ ≈ a / r）。这也是笛卡尔限位
+  // 加速度上限**不能所有关节一刀切**：靠近末端的关节力臂只有 0.1 m 量级，末端要做出
+  // 2 m/s² 的加速度，该关节就得转 20 rad/s² 左右（q̈ ≈ a / r）。这也是笛卡尔限位
   // 满足之后、关节侧仍然可能判"不可行"的原因 —— 两个空间的量纲不是一回事。
-  // 取值与力矩上限是否自洽可以自己核对：τ ≈ M·q̈ + G，例如关节2 取 30 rad/s² 时
-  // 约需 8 N·m（惯量项）+ 13 N·m（重力项）< 50 N·m，做得到。
+  //
+  // ⚠️ 下面这行仍是旧 6 轴臂的 6 个取值，与本模型的 4 个关节不匹配，会让本示例在
+  //    "状态向量长度"校验处失败。属待修项（与 q_start/q_goal 的 6 元素初值同源）。
   ctx.joint_limits.max_acceleration = jnt({ 30.0, 30.0, 30.0, 80.0, 80.0, 80.0 });  // rad/s²
   ctx.joint_limits.max_jerk = filled(n, 100.0);  // rad/s³（单段示例的端点 jerk ≈ 25，可过）
   ctx.cartesian_limits.max_linear_velocity = 0.5;           // m/s

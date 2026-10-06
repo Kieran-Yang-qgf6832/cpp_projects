@@ -14,8 +14,8 @@
     控制器 ──> command_interface(关节力矩) ──> MuJoCo ctrl（<motor> 直接当力矩施加）
 
   对应关系速查：
-    关节      joint1..joint6        （URDF，也是 MJCF 里的 joint 名）
-    执行器    motor1..motor6        （MJCF <motor .../>，ctrl = 关节力矩 [N·m]）
+    关节      joint1..joint4        （URDF，也是 MJCF 里的 joint 名）
+    执行器    motor1..motor4        （MJCF <motor .../>，ctrl = 关节力矩 [N·m]）
     传动      1:1 直连，不需要 <transmission>（详见文件末尾注释与 README）
 
   力矩控制的两个硬前提（改这里时别忘）：
@@ -69,7 +69,7 @@
            <param name="odom_topic">/simulator/floating_base_state</param> -->
     </hardware>
 
-    <!-- 关节 ↔ 接口声明。六个关节接口完全相同，用宏展开避免手抄六遍。 -->
+    <!-- 关节 ↔ 接口声明。四个关节接口完全相同，用宏展开避免手抄四遍。 -->
     <xacro:macro name="arm_joint" params="name">
       <joint name="${name}">
         <!-- 命令接口：effort（关节力矩 [N·m]）。对应 MJCF 里的 <motor>，
@@ -92,8 +92,6 @@
     <xacro:arm_joint name="joint2"/>
     <xacro:arm_joint name="joint3"/>
     <xacro:arm_joint name="joint4"/>
-    <xacro:arm_joint name="joint5"/>
-    <xacro:arm_joint name="joint6"/>
 
     <!-- ===================== 传动（transmission）配置说明 =====================
          当前的 1:1 直连不需要任何 <transmission>：

@@ -61,7 +61,7 @@ public:
    * @param ctx       [out] 装配结果；失败时被清空。
    * @param message   [out] 失败原因（中文）。
    * @param base_link [in]  链的起点 link，默认 "base_link"。
-   * @param tip_link  [in]  链的末端 link，默认 "link6"。
+   * @param tip_link  [in]  链的末端 link，默认 "link4"。
    * @return true 表示装配成功。
    *
    * @note 这两个默认值与 kdl_tools::kDefaultBaseLink / kDefaultTipLink 一致；这里
@@ -74,7 +74,7 @@ public:
    */
   static bool loadContextFromUrdf(
     const std::string & urdf_file, RobotContext & ctx, std::string & message,
-    const std::string & base_link = "base_link", const std::string & tip_link = "link6");
+    const std::string & base_link = "base_link", const std::string & tip_link = "link4");
 
   // ---- 任务注册 ----
   /// 注册/替换一个任务实现（后续任务的扩展点）。

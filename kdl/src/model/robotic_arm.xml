@@ -15,51 +15,33 @@
     <mesh name="link2" file="link2.STL" />
     <mesh name="link3" file="link3.STL" />
     <mesh name="link4" file="link4.STL" />
-    <mesh name="link5" file="link5.STL" />
-    <mesh name="link6" file="link6.STL" />
   </asset>
   <worldbody>
     <body name="base_link">
-      <inertial pos="-0.00360621702328832 5.13965852572684e-05 -0.00437548460570378" mass="0.905716018714615" fullinertia="0.00107148927922179 0.00144104333999584 0.00244792600293045 2.76094582641941e-06 -5.48596189361244e-07 2.22549999381976e-07" />
-      <geom type="mesh" rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" mesh="base_link" />
+      <inertial pos="-9.52016243616072e-15 -1.94289029309402e-16 0.0155191781345583" mass="0.446116144380579" fullinertia="0.000224798050494485 0.00138255058840876 0.00122839549734328 -2.18020596920716e-10 -7.25060202849681e-19 -2.37030607855116e-20" />
+      <geom type="mesh" rgba="0.866666666666667 0.909803921568627 1 1" mesh="base_link" />
       <site name="tool_site" pos="0 0 0" size="0.01" />
-      <body name="link1" pos="6.34132927793407e-05 -0.00167405073291106 0.0278500000000087">
-        <inertial pos="-0.000108374983294121 -0.0224173657123978 0.0295694936286941" mass="1.91180538368796" fullinertia="0.00130826953517784 0.00190867031535885 0.00177080127699075 1.3668660920291e-06 1.38971343647627e-05 1.26824657951645e-06" />
-        <joint name="joint1" pos="0 0 0" axis="0 0 1" range="-3.14 3.14" actuatorfrcrange="-50 50" />
-        <geom type="mesh" rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" mesh="link1" />
-        <!-- URDF joint2 origin rpy = -1.5707963267949 -1.5708 0 -->
-        <body name="link2" pos="0.00565491862295636 0.0185517283813911 0.0710733482199691" quat="0.499999081698 -0.499999081698 -0.500000918300 -0.500000918300">
-          <inertial pos="0.375032807584103 -0.00767142856848219 -0.0148750517361231" mass="1.09233144358037" fullinertia="0.000562645054167591 0.00825256907491947 0.00858584566040506 4.6355173743639e-07 -5.41332728898313e-05 -1.2040814647427e-06" />
-          <joint name="joint2" pos="0 0 0" axis="0 0 -1" range="-1.57 1.57" actuatorfrcrange="-50 50" />
-          <geom type="mesh" rgba="0.701960784313725 0.670588235294118 0.933333333333333 1" mesh="link2" />
-          <!-- URDF joint3 origin rpy = 3.14159265358979 0 0 -->
-          <body name="link3" pos="0.500001547205985 -0.00750000000003981 0.0418960557056171" quat="0 1 0 0">
-            <inertial pos="0.396708620293581 -0.0009580050394698 0.0146574939500043" mass="0.750870225721497" fullinertia="0.000311759468382739 0.00280789973164969 0.00305821466409237 -4.43262109210123e-06 2.95134858752333e-06 -6.86575257856084e-07" />
-            <joint name="joint3" pos="0 0 0" axis="0 0 -1" range="-2.8 2.8" actuatorfrcrange="-50 50" />
-            <geom type="mesh" rgba="0.647058823529412 0.854901960784314 0.533333333333333 1" mesh="link3" />
-            <!-- URDF joint4 origin rpy = 3.14159265358979 0 1.5708 -->
-            <body name="link4" pos="0.493372719987381 -0.000717203264851807 -0.0115" quat="0 0.707105482511 0.707108079859 0">
-              <inertial pos="0.0388635088998436 0.0683350036809159 -0.0302743627631186" mass="0.328855136025888" fullinertia="0.000130515381077466 8.67316206395657e-05 0.000124148178178434 -1.58524988603632e-07 2.47556859422373e-07 -5.55843117742173e-08" />
-              <joint name="joint4" pos="0 0 0" axis="0 0 -1" range="-1.82 1.92" actuatorfrcrange="-100 100" />
-              <geom type="mesh" rgba="0.698039215686274 0.698039215686274 0.698039215686274 1" mesh="link4" />
-              <!-- URDF joint5 origin rpy = 1.5707963267949 0 1.5708 -->
-              <body name="link5" pos="0.0420000017681742 0.0760000060786439 -0.0298499999999999" quat="0.499999081698 0.499999081698 0.500000918300 0.500000918300">
-                <inertial pos="0.0409963218118283 -0.000737375741447381 -0.0449408930326747" mass="0.107863966418761" fullinertia="2.27221737578051e-05 2.42204415320291e-05 3.18656466025932e-05 2.69721515117386e-08 5.25283476817911e-07 5.16755491617417e-09" />
-                <joint name="joint5" pos="0 0 0" axis="-0.0571545044239792 0 -0.998365345263972" range="-0.4 0.4" actuatorfrcrange="-50 50" />
-                <geom type="mesh" rgba="0.698039215686274 0.698039215686274 0.698039215686274 1" mesh="link5" />
-                <!-- URDF joint6 origin rpy = 0.0171393597075962 1.51361065936655 3.14159265358978 -->
-                <body name="link6" pos="0.109242825291171 -0.00191951430536242 -0.0510772149208419" quat="0.005883890063 -0.686577109745 0.006230365380 0.727006488801">
-                  <inertial pos="3.46944695195361e-18 -1.17961196366423e-16 0.0196990985019004" mass="0.150213928644987" fullinertia="7.59512548879523e-05 7.59512548879523e-05 0.00011238690149753 6.71670657393058e-21 -1.05879118406788e-20 -2.26088313745444e-19" />
-                  <joint name="joint6" pos="0 0 0" axis="0 0 1" range="-3.14 3.14" damping="2.0" actuatorfrcrange="-50 50" />
-                  <geom type="mesh" rgba="0.113725490196078 0.113725490196078 0.113725490196078 1" mesh="link6" />
-                  <site name="ee_site" pos="0 0 0.05" size="0.01" />
-                  <!-- 末端挂载立方体：有质量参与动力学，但不参与碰撞
-                  <body name="ee_box" pos="0 0 -0.175">
-                    <inertial pos="0 0 0" mass="0.63" diaginertia="0.000167 0.000167 0.000167"/>
-                    <geom type="box" size="0.175 0.175 0.175" rgba="1 0 0 1" contype="0" conaffinity="0"/>
-                  </body> -->
-                </body>
-              </body>
+      <!-- URDF joint1 origin rpy = 1.5708 -1.57 -3.1416 -->
+      <body name="link1" pos="0 -0.04 0.05" quat="0.499799959274 -0.49980179807 -0.500198124855 -0.500199959263">
+        <inertial pos="0.150031524729698 0.000191995103078102 0.0344853139404591" mass="0.43178795433662" fullinertia="5.96075244798525e-05 0.00272008694008324 0.00274655104559429 -4.07370544541132e-06 -1.02661773419375e-07 2.06377860208473e-08" />
+        <joint name="joint1" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" actuatorfrcrange="-50 50" />
+        <geom type="mesh" rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" mesh="link1" />
+        <!-- URDF joint2 origin rpy = 1.5708 0.0 0.0 -->
+        <body name="link2" pos="0.374 0 0.0401" quat="0.707105482511 0.707108079859 0 0">
+          <inertial pos="0.205484012122796 -0.00549986783103082 0.0186225676272804" mass="0.334546886253206" fullinertia="9.93613919225459e-05 0.000582195736690295 0.000556148638754133 8.10971210408094e-10 -4.61050169328864e-09 5.70676865975426e-09" />
+          <joint name="joint2" pos="0 0 0" axis="0 -1 0" range="-3.0 3.0" actuatorfrcrange="-50 50" />
+          <geom type="mesh" rgba="0.866666666666667 0.909803921568627 1 1" mesh="link2" />
+          <!-- URDF joint3 origin rpy = -1.5708 -1.5708 -1.5708 -->
+          <body name="link3" pos="0.3384 -0.0055 0.045" quat="-0.000003896022 -0.707106781181 0.000001298674 -0.707106781181">
+            <inertial pos="0.00045693106510647 0.0120159218838146 0.0326962826671975" mass="0.0818036914981158" fullinertia="2.58771620872542e-05 3.05802737829727e-05 2.3497726615304e-05 1.52000429986836e-07 1.71868944443329e-08 3.75710826679309e-07" />
+            <joint name="joint3" pos="0 0 0" axis="0 0 1" range="-3.14 3.14" actuatorfrcrange="-50 50" />
+            <geom type="mesh" rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" mesh="link3" />
+            <!-- URDF joint4 origin rpy = -1.5708 -1.5708 3.14 -->
+            <body name="link4" pos="0.00079568 0.018983 0.043" quat="0.500399839961 0.499601678107 -0.500398004818 0.499599840046">
+              <inertial pos="0.0717111929893778 -0.0115466248724582 0.0198054015294321" mass="0.269974503355347" fullinertia="0.000158676016051897 0.000126778289759083 0.000154960757569298 7.59760657382795e-08 5.56013658017894e-08 2.07997464437305e-09" />
+              <joint name="joint4" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" actuatorfrcrange="-50 50" />
+              <geom type="mesh" rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" mesh="link4" />
+              <site name="ee_site" pos="0.1165 0 0" size="0.01" />
             </body>
           </body>
         </body>
@@ -71,50 +53,43 @@
     <exclude body1="link1" body2="link2" />
     <exclude body1="link2" body2="link3" />
     <exclude body1="link3" body2="link4" />
-    <exclude body1="link4" body2="link5" />
-    <exclude body1="link5" body2="link6" />
   </contact>
   <!-- 执行器：位置伺服（MuJoCo 内置 PD）。
        ctrl 的语义就是"目标关节角"，正好对应 ros2_control 的 position 命令接口，
        所以 JointTrajectoryController 可以不加任何 PID 直接驱动这套模型。
        dampratio="1.0" 时 MuJoCo 会按该关节的实际等效惯量自动算出临界阻尼的 kv，
        因此只需要调 kp：kp 越大越"硬"、稳态下沉越小，过大则在数值上发散。
-       下面这组 kp 是按本臂选的（连杆质量 0.1~1.9 kg、惯量 1e-4~1e-2 kg·m²），
-       比常见的大臂（kp=25000 量级）小两个数量级，照抄大臂参数会发散。
+       下面这组 kp 按本臂（4 自由度，连杆质量 0.08~0.45 kg、惯量 2.6e-5~2.7e-3 kg·m²）
+       选取：以 src/model/robotic_arm.xml 的 joint1~joint4（kp=400/3000/1800/100）为基准，
+       按等效惯量比约 1/4 缩放得到，仍需在仿真里实测微调。
        ctrlrange 取关节行程，MuJoCo 会把设定值夹在行程内。
 
+       effort 上限：与 URDF 各关节的 <limit effort> 一致——本模型四个关节均为
+       50 N·m。actuatorfrcrange 是 MuJoCo 侧的物理夹取，改 URDF 的 effort 时
+       必须同步改这里。
+
        若要改成纯力矩控制（ros2_control 侧用 effort 命令接口 + 力矩控制器），
-       把下面整块换成：
-       <motor name="motor1" joint="joint1" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-       （其余关节同理，力矩上限由 joint 的 actuatorfrcrange 决定）
+       用同目录的 robotic_arm_torque.xml / scene_torque.xml。
        MuJoCo 不允许在运行期切换执行器类型，所以这是二选一的编译期决定。 -->
   <actuator>
-    <position name="motor1" joint="joint1" kp="400" dampratio="1.0" ctrllimited="true" ctrlrange="-3.14 3.14" />
-    <position name="motor2" joint="joint2" kp="3000" dampratio="1.0" ctrllimited="true" ctrlrange="-1.57 1.57" />
-    <position name="motor3" joint="joint3" kp="1800" dampratio="1.0" ctrllimited="true" ctrlrange="-2.8 2.8" />
-    <position name="motor4" joint="joint4" kp="100" dampratio="1.0" ctrllimited="true" ctrlrange="-1.82 1.92" />
-    <position name="motor5" joint="joint5" kp="50" dampratio="1.0" ctrllimited="true" ctrlrange="-0.4 0.4" />
-    <position name="motor6" joint="joint6" kp="10" dampratio="1.0" ctrllimited="true" ctrlrange="-3.14 3.14" />
+    <position name="motor1" joint="joint1" kp="100" dampratio="1.0" ctrllimited="true" ctrlrange="-1.57 1.57" />
+    <position name="motor2" joint="joint2" kp="800" dampratio="1.0" ctrllimited="true" ctrlrange="-3.0 3.0" />
+    <position name="motor3" joint="joint3" kp="500" dampratio="1.0" ctrllimited="true" ctrlrange="-3.14 3.14" />
+    <position name="motor4" joint="joint4" kp="50" dampratio="1.0" ctrllimited="true" ctrlrange="-1.57 1.57" />
   </actuator>
   <sensor>
     <actuatorpos name="motor1_p" actuator="motor1" />
     <actuatorpos name="motor2_p" actuator="motor2" />
     <actuatorpos name="motor3_p" actuator="motor3" />
     <actuatorpos name="motor4_p" actuator="motor4" />
-    <actuatorpos name="motor5_p" actuator="motor5" />
-    <actuatorpos name="motor6_p" actuator="motor6" />
     <actuatorvel name="motor1_v" actuator="motor1" />
     <actuatorvel name="motor2_v" actuator="motor2" />
     <actuatorvel name="motor3_v" actuator="motor3" />
     <actuatorvel name="motor4_v" actuator="motor4" />
-    <actuatorvel name="motor5_v" actuator="motor5" />
-    <actuatorvel name="motor6_v" actuator="motor6" />
     <actuatorfrc name="motor1_f" actuator="motor1" noise="1e-3" />
     <actuatorfrc name="motor2_f" actuator="motor2" noise="1e-3" />
     <actuatorfrc name="motor3_f" actuator="motor3" noise="1e-3" />
     <actuatorfrc name="motor4_f" actuator="motor4" noise="1e-3" />
-    <actuatorfrc name="motor5_f" actuator="motor5" noise="1e-3" />
-    <actuatorfrc name="motor6_f" actuator="motor6" noise="1e-3" />
     <framepos name="ee_pos" objtype="site" objname="ee_site" />
     <framequat name="ee_quat" objtype="site" objname="ee_site" />
   </sensor>

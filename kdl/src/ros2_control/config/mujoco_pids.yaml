@@ -1,82 +1,106 @@
 # =============================================================================
-# 可选：把"位置/速度指令"在插件内部换算成力矩的 PID 参数
+# PID 增益 —— 供两处使用（注意是两处，不是一处）
 # -----------------------------------------------------------------------------
-# 什么时候需要这份文件：
-#   MJCF 里的执行器是 <motor> / <velocity> / <general>（这些原生只接受力矩或
-#   速度指令），却想给 ros2_control 的 position（或 velocity）命令接口用时，
-#   插件会用这里的 PID 做闭环，把指令转成力矩写进 ctrl。
+# 1) kdl_tools/KdlEffortController（**当前实际生效的那一处**）
+#    它在 pid_config_file 为空时默认加载本文件，只读
+#    pid_gains.position.<joint> 的 p/i/d/u_clamp_*/i_clamp_*，作为力矩环
+#    （前馈 τ_ff + PID 反馈）的增益。controllers.yaml 里 pid_config_file 留空，
+#    所以改这里就等于改实际控制增益。
 #
-# 什么时候不需要：
-#   本方案默认的 MJCF 用的是 <position> 执行器 —— MuJoCo 自带 PD，原生接受
-#   位置指令，不经过这里，所以 xacro 里 use_position_pid 默认是 false。
-#   如果把 MJCF 换回 <motor> 并想继续用位置指令，就把 use_position_pid 打开：
-#     ros2 launch kdl_tools arm_mujoco_control.launch.py use_position_pid:=true
+# 2) mujoco_ros2_control 插件（仅在 use_position_pid:=true 时）
+#    MJCF 用 <motor>/<velocity>/<general> 而想给 position/velocity 命令接口用时，
+#    插件用这里的 PID 把指令换算成力矩。本方案默认走 <motor> + effort 接口，
+#    该路径不启用。
 #
-# 节点名用 /** 通配，参数挂在插件自己创建的 mujoco_ros2_control_node 上。
-# 键名 = 关节名（插件用 actuator_data.joint_name 去查）。
+# -----------------------------------------------------------------------------
+# 增益是怎么定的（2026-10 换 4 轴臂时重算）
+# -----------------------------------------------------------------------------
+# 旧的一组（p=110/300/70/2.0、d=1/40/5/0.25）是按**旧 6 轴臂**整定的。换臂后
+# 直接沿用会导致 joint3 自激：实测关节速度在 ±40~70 rad/s 之间抖振（URDF 速度
+# 上限只有 10 rad/s），轨迹终点残差 1.34 rad，控制器完全无法跟踪。
+#
+# 现在改为按各关节的**等效惯量**重新设计。等效惯量 = 该关节所有远端连杆绕该
+# 关节轴线的复合刚体惯量（在 q=0 处投影到关节轴上），用 URDF/MJCF 的
+# 质量、惯量、质心逐段复合算出：
+#
+#   关节     旧臂等效惯量   新臂等效惯量    比值      旧 p    新 p     旧 d     新 d
+#   joint1   6.9575e-03    3.5685e-01    51.3x     110.0   80.29    1.00   10.71
+#   joint2   1.4755e+00    8.2759e-02     0.056x   300.0   18.62   40.00    2.483
+#   joint3   3.3111e-01    2.3511e-04     0.0007x   70.0    0.0529   5.00    0.00705
+#   joint4   7.8619e-03    1.5793e-03     0.201x     2.0    0.3553   0.25    0.04738
+#
+#   （旧臂 joint2 算得 1.4755 kg·m²，与《力矩控制问题报告》独立实测的 ≈1.4 吻合，
+#     说明这套等效惯量算法可信。）
+#
+# 设计规则：kp = J·ω_n²，kd = 2ζ·J·ω_n，取 ω_n = 15 rad/s、ζ = 1.0（临界阻尼）。
+# ω_n = 15 与旧臂 joint2/joint3/joint4 反推出的 ω_n（14.3 / 14.5 / 15.9）一致，
+# 即保留了原来的"手感"，只是把 J 换成了新臂的真实值。
+#
+# 注意 joint1 的等效惯量反而**变大**了：旧臂 joint1 是竖直的基座偏航轴，新臂
+# joint1 的 URDF rpy=(1.5708,-1.57,-3.1416) 把它变成了接近水平的轴，整条臂都
+# 参与绕轴转动，所以 J 从 7.0e-3 涨到 0.357。
+#
+# 为什么 joint3 的增益小到 0.05 仍然合理：重力由控制器里的逆动力学前馈
+# inverseDynamics(q,0,0) 单独补偿，PID 只负责修误差，不需要靠 kp 去顶重力。
 #
 # 调参经验（按 p → d → i 的顺序，一次只动一个）：
 #   1. 先把 i、d 置 0，从小到大加 p，直到位置跟随变快但不振荡；
-#   2. 加 d 压住超调，一般取 p 的 10%~20%；
+#   2. 加 d 压住超调，临界阻尼时 d = 2·J·ω_n；
 #   3. 有稳态下沉（重力带来的静差）才加一点 i，并用 u_clamp/i_clamp 限幅。
-#   u_clamp 建议不超过 URDF 里该关节的 <limit effort>。
+#   u_clamp 建议不超过 URDF 里该关节的 <limit effort>（本模型四个关节均为 50）。
 # =============================================================================
 /**:
   ros__parameters:
     pid_gains:
       position:
+        # J = 3.5685e-01
         joint1:
-          p: 110.0
+          p: 80.29
           i: 0.0
-          d: 1.0  # 15.0
+          d: 10.71
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0
           i_clamp_min: -1.0
+        # J = 8.2759e-02
         joint2:
-          p: 300.0
+          p: 18.62
           i: 0.0
-          d: 40.0
+          d: 2.483
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0
           i_clamp_min: -1.0
+        # J = 2.35e-04 ~ 1.52e-03（随构型变化 6.5 倍，q=0 处最小）
+        # 注意：单纯按 kp = J·ω_n² 取会得到 0.053，实测**太软**。
+        #   joint3 的稳态重力负载约 0.093 N·m（实测保持力矩），kp=0.053 时
+        #   柔度 τ_g/kp = 1.76 rad —— 前馈只要有一点残差就产生 1 rad 量级的
+        #   稳态误差（实测终点残差 1.17~1.35 rad，与推算吻合）。
+        #   其余三轴的 τ_g/kp 只有 0.009 / 0.108 / 0.009 rad，所以只有 joint3 出问题。
+        # 改按"把柔度压到与其它关节同量级"反推：kp ≈ τ_g/0.05 ≈ 1.9。
+        # 这会让最坏构型（J=2.0e-4）的 ω_n 升到 ~97 rad/s，ω_n·dt = 0.19（dt=2ms），
+        # 仍在稳定范围内（旧值 kp=70 对应 ω_n·dt ≈ 1.1，那才是自激的原因）。
         joint3:
-          p: 70.0
+          p: 1.9
           i: 0.0
-          d: 5.0  # 10.0
+          d: 0.078
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0
           i_clamp_min: -1.0
+        # J = 1.5793e-03
         joint4:
-          p: 2.0
+          p: 0.3553
           i: 0.0
-          d: 0.25
-          u_clamp_max: 100.0
-          u_clamp_min: -100.0
-          i_clamp_max: 1.0
-          i_clamp_min: -1.0
-        joint5:
-          p: 0.4
-          i: 0.0
-          d: 0.05
+          d: 0.04738
           u_clamp_max: 50.0
           u_clamp_min: -50.0
           i_clamp_max: 1.0
           i_clamp_min: -1.0
-        joint6:
-          p: 0.3
-          i: 0.0
-          d: 0.03
-          u_clamp_max: 50.0
-          u_clamp_min: -50.0
-          i_clamp_max: 1.0
-          i_clamp_min: -1.0
+      # 供 mujoco 插件的 velocity 命令接口使用（当前方案未启用该路径）。
+      # 同样按 J 比例重算，避免留下旧臂的值。
       velocity:
-        joint1: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
-        joint2: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
-        joint3: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
-        joint4: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 100.0, u_clamp_min: -100.0}
-        joint5: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
-        joint6: {p: 30.0, i: 0.1, d: 1.0, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint1: {p: 1538.7, i: 5.129, d: 51.29, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint2: {p: 1.683, i: 0.00561, d: 0.0561, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint3: {p: 0.0213, i: 0.000071, d: 0.00071, u_clamp_max: 50.0, u_clamp_min: -50.0}
+        joint4: {p: 6.027, i: 0.02009, d: 0.2009, u_clamp_max: 50.0, u_clamp_min: -50.0}

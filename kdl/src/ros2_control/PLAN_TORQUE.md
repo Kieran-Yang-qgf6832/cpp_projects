@@ -81,11 +81,11 @@
 | # | 事实 | 依据 |
 |---|---|---|
 | F1 | effort 命令接口**只对 `<motor>`/`<general>` 执行器有效**；对 position/velocity 会 `ERROR` 并 skip | `docs/hardware_interface.rst` 兼容表；`mujoco_system_interface.cpp:1644-1662` |
-| F2 | 当前 MJCF 全为 `<position>`（`kp=400..3000 dampratio=1.0`） | `src/model/robotic_arm.xml:91-98` |
+| F2 | 改造前 MJCF 全为 `<position>`（旧 6 轴版 kp=400..3000，dampratio=1.0） | `src/model/robotic_arm.xml`（该文件现已换成 4 轴模型，kp=100/800/500/50） |
 | F3 | `write()` 把 effort 命令**原样写 `ctrl`，无 gear 缩放** | `mujoco_system_interface.cpp:1100-1103` |
 | F4 | `mujoco_pids.yaml` **在 effort 模式下不会被插件使用**（只在 position/velocity 接口 + motor 执行器时喂 `control_toolbox::PidROS`） | `mujoco_system_interface.cpp:1284-1325, 1589` |
 | F5 | control_toolbox 的 PID 公式 = `p·e+i·∫e+d·ė` + `u_clamp`/`i_clamp`，与需求公式同语义 | 同上 |
-| F6 | **yaml 里 position 段所有关节 `i=0.0`**（积分项恒为 0） | `mujoco_pids.yaml:29-75` |
+| F6 | **yaml 里 position 段所有关节 `i=0.0`**（积分项恒为 0） | `config/mujoco_pids.yaml` 的 `pid_gains.position` 段 |
 | F7 | URDF 与 MJCF 的关节轴/顺序**逐条一致** → 前馈力矩无符号/顺序问题 | `robotic_arm.urdf` vs `robotic_arm.xml` |
 | F8 | 状态接口已有 `effort`，实测值 = `qfrc_actuator` | `mujoco_system_interface.cpp:926`；xacro `:80` |
 | F9 | 反馈率不匹配：CM `100` vs JSB `50`（新方案 CM=500） | `controllers.yaml:19,41` |
@@ -98,7 +98,7 @@
 ### 4.1 控制点（复用 `trajectory_msgs/JointTrajectory`）
 
 - 话题：**`/control_reference`**，`trajectory_msgs/msg/JointTrajectory`，QoS `reliable` + `volatile` + `keep_last(1)`。
-- `joint_names` = 控制器关节顺序（joint1..joint6）；控制器按**名字**对齐。
+- `joint_names` = 控制器关节顺序（joint1..joint4）；控制器按**名字**对齐。
 - `points[k].positions/velocities/efforts`：关节参考 `q_ref/q̇_ref/τ_ff`，单位 rad、rad/s、N·m。
 - `points[k].time_from_start`：**严格递增**，首点 0，末点 = `duration`。
 - `header.stamp` 留 0（与旧实现一致，语义 = 「从现在开始」）。
@@ -261,16 +261,14 @@ update(time, period):
 ### 7.1 MJCF（新增 torque 版）
 
 `src/model/robotic_arm_torque.xml`：与 `robotic_arm.xml` 完全一致，仅 `<actuator>` 段改为
-（`ctrlrange` 取 URDF effort；joint4 为 ±100）：
+（`ctrlrange` 取 URDF effort；本模型四个关节均为 50）：
 
 ```xml
 <actuator>
   <motor name="motor1" joint="joint1" gear="1" ctrllimited="true" ctrlrange="-50 50" />
   <motor name="motor2" joint="joint2" gear="1" ctrllimited="true" ctrlrange="-50 50" />
   <motor name="motor3" joint="joint3" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-  <motor name="motor4" joint="joint4" gear="1" ctrllimited="true" ctrlrange="-100 100" />
-  <motor name="motor5" joint="joint5" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-  <motor name="motor6" joint="joint6" gear="1" ctrllimited="true" ctrlrange="-50 50" />
+  <motor name="motor4" joint="joint4" gear="1" ctrllimited="true" ctrlrange="-50 50" />
 </actuator>
 ```
 
@@ -301,7 +299,7 @@ joint_state_broadcaster:
 
 kdl_effort_controller:
   ros__parameters:
-    joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+    joints: [joint1, joint2, joint3, joint4]
     command_interfaces: [effort]
     state_interfaces: [position, velocity]
     urdf_file: ""                         # 空 = 用 share/kdl_tools/model/robotic_arm.urdf
@@ -444,7 +442,7 @@ install(TARGETS kdl_effort_controller kdl_control_node
 | 100 Hz 稳定性不足 | 🟡→已缓解 | 提到 500 Hz；`kp=300` 时 `ωn·T≈0.39 rad`，裕度充足 |
 | 增益仍需实测整定 | 🟡 | P3 分级验证；必要时下调 `kp` 或 PM 阶段再调 |
 | 起始瞬态（生成 q_now 到执行有时间差） | 🟡 | 轨迹首点 = 生成时 q_now；控制器已锁位，误差有限；必要时对 τ 加斜率限幅 |
-| 模型差异（joint6 `damping`/`friction`、惯量数值） | 🟡 | 静态由重力前馈吸收；动态残差靠 `kd` |
+| 模型差异（惯量数值、`<dynamics>` 阻尼/摩擦） | 🟡→**已发生** | 换 4 轴臂后旧 PID 增益直接导致 joint3 自激（实测 ±50 rad/s）。已按各关节等效惯量重算并实测通过，推导见 `config/mujoco_pids.yaml` 头部注释 |
 | 消息过大 / 点数爆表（24 s@2 ms ≈ 2501 点/5 s） | 🟡 | `point_dt` 与网格解耦（控制器线性插值），可上调 `point_dt`；`max_trajectory_points` 上限保护 |
 | 控制器 `~/status` 与节点命名空间不一致 | 🟢 | 统一用 `kdl_effort_controller/status`；launch 校验 |
 | `defaultGravity()` 与 MJCF `<option gravity>` 不一致 | 🟢 | 实现时核对，不一致则显式传 `(0,0,-9.81)` |
@@ -486,14 +484,14 @@ install(TARGETS kdl_effort_controller kdl_control_node
 | 项 | 计划（§） | 实际实现 | 原因（详见问题报告） |
 |---|---|---|---|
 | 空闲重力前馈 | `gravityTorque(chain, q_meas)`（§6.1） | `inverseDynamics(chain, q_ref, 0, 0)` | ① 在**保持参考点**算才能零静差（setpoint gravity comp）；② 与执行态 τ_ff 同函数、符号天然一致 |
-| 增益 | 直接取 `mujoco_pids.yaml` 原值（§6.2） | 按实测 `M(q)` 用 `kp=Mωn², kd=2ζMωn`（ωn=15, ζ=1）重调 | 原值配 ±50 clamp 全程饱和 → bang-bang（问题二） |
-| MJCF 关节 | 仅 `<motor>` 替换（§7.1） | 额外加关节阻尼 | 控制器激活前有 ~1.4 s 无控制窗口，需压住自由下落速度（问题三） |
-| MJCF 接触 | 未提及 | 非相邻连杆两两 `<exclude>` | 网格凸包近似造成 link3↔link5 假自碰撞，把 j4 顶在半路（问题四） |
+| 增益 | 直接取 `mujoco_pids.yaml` 原值（§6.2） | 按实测 `M(q)` 用 `kp=Mωn², kd=2ζMωn`（ωn=15, ζ=1）重调；换 4 轴臂后又按 `τ_g/kp` 柔度修正了小惯量关节 | 原值配 ±50 clamp 全程饱和 → bang-bang（问题二）；换臂后 joint3 柔度达 1.76 rad → 终点残差 1.3 rad |
+| MJCF 关节 | 仅 `<motor>` 替换（§7.1） | 旧 6 轴臂额外加了关节阻尼；**4 轴臂未加**（新 URDF 无 `<dynamics>`，四个关节全零阻尼） | 控制器激活前有 ~1.4 s 无控制窗口，需压住自由下落速度（问题三） |
+| MJCF 接触 | 未提及 | 非相邻连杆两两 `<exclude>`（4 轴模型共 10 对，已覆盖全部连杆组合） | 网格凸包近似造成假自碰撞，把关节顶在半路（问题四；旧 6 轴臂实测为 link3↔link5） |
 | 完成判据 | 参考时间跑完即 `active=false`（§6.3） | 节点在终点**等停稳**后核对残差，超阈值返回 `error_code=8`（新增 `tracking_tolerance`，默认 0.05 rad） | "跑完时间" ≠ "到位"（问题五） |
 | `ControlTask.srv` 错误码 | 0 / 1..7 / `<0`（§4.2） | 0 / 1..8 / `<0`（新增 8 = 未到位） | 同上 |
 | `kdl_dynamics` / `dynamics_demo` | — | 修正 `gravityTorque` 的重力补偿符号注释与用例 | 记号写反会加倍重力（问题一） |
 
-**尚未根治**：问题三（激活前自由下落）。当前用关节阻尼缓解，见问题报告 §3.5 的后续路径。
+**尚未根治**：问题三（激活前自由下落）。旧 6 轴臂曾用关节阻尼缓解；4 轴模型未加阻尼，且 joint2 行程为 ±3.0（旧臂 ±1.57），下落幅度更大。
 
 ---
 

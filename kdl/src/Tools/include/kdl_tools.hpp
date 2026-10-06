@@ -26,7 +26,7 @@ namespace kdl_tools
 /// 本机器人（src/model/robotic_arm.urdf）整棵树所对应的默认链两端。
 /// 之所以用常量而不是写死在函数里，是为了让"默认值"这一约定有唯一出处。
 constexpr const char * kDefaultBaseLink = "base_link";
-constexpr const char * kDefaultTipLink = "link6";
+constexpr const char * kDefaultTipLink = "link4";
 
 // ---------------------------------------------------------------------------
 // 一、URDF 文本 -> KDL::Tree
@@ -78,12 +78,12 @@ bool buildTreeFromUrdfModel(
  * @param tree    已构建好的运动学树。
  * @param chain   [输出] 截取出来的链；成功时被填充，失败时保持原样。
  * @param base_link 链的起点（基座）link 名，默认 kDefaultBaseLink（"base_link"）。
- * @param tip_link  链的终点（末端）link 名，默认 kDefaultTipLink（"link6"）。
+ * @param tip_link  链的终点（末端）link 名，默认 kDefaultTipLink（"link4"）。
  * @return true 表示两个 link 之间存在一条连通路径。
  *
- * @note 若省略后两个参数，就是本机器人最常用的 "base_link -> link6"。
- *       传入 "world" 作为 base_link 也能工作，此时链里会多出一个
- *       world_to_base 固定段（fixed segment）。
+ * @note 若省略后两个参数，就是本机器人最常用的 "base_link -> link4"。
+ *       本模型的根 link 就是 base_link（URDF 里没有 world link），
+ *       所以 base_link 必须传 "base_link"。
  * @note KDL::Tree::getChain() 的语义是：
  *       - 两者都在树中且连通 -> 成功；
  *       - 任一 link 不存在 / 不连通 -> 返回 false。
@@ -98,7 +98,7 @@ bool buildChain(
  * @param urdf_file URDF 文件路径。
  * @param chain     [输出] 截取出来的链。
  * @param base_link 链的起点 link 名，默认 "base_link"。
- * @param tip_link  链的终点 link 名，默认 "link6"。
+ * @param tip_link  链的终点 link 名，默认 "link4"。
  * @return true 表示从文件到链的整条流程全部成功。
  *
  * @note 只关心一条链时用这个最省事；需要遍历整棵树时请用 buildTreeFromUrdfFile。

@@ -37,7 +37,7 @@
 namespace
 {
 
-/// 演示用的关节数（与 src/model/robotic_arm.urdf 的 6 自由度一致，但不依赖模型）。
+/// 演示用的关节数（本示例自包含，不读 URDF，取值与具体模型无关）。
 constexpr unsigned int kNumJoints = 6;
 
 /**
@@ -179,7 +179,7 @@ int main(int argc, char ** argv)
   std::cout << "  段时长 T    = " << single_duration << " s\n";
 
   // 六个边界条件全部显式传入 —— 这就是"单段便捷入口"的用法。
-  // 六个关节各求一次，得到的系数彼此独立（关节之间没有耦合）。
+  // 每个关节各求一次，得到的系数彼此独立（关节之间没有耦合）。
   std::vector<kdl_interpolation::QuinticCoefficients> single_segments(kNumJoints);
   for (unsigned int j = 0; j < kNumJoints; ++j) {
     kdl_interpolation::computeQuinticCoefficients(

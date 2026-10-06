@@ -148,7 +148,7 @@ def build_overview(data, panels, csv_path):
     for index, (prefix, title, ylabel) in enumerate(panels):
         draw_panel(flat[index], data, prefix, title, ylabel)
         if index == 0:
-            # 图例只在第一格给一次：六个关节的颜色映射在全部子图里是一致的。
+            # 图例只在第一格给一次：各关节的颜色映射在全部子图里是一致的。
             flat[index].legend(fontsize=8, ncol=2)
 
     # x 轴共享，所以只在最下面一行标注时间轴。

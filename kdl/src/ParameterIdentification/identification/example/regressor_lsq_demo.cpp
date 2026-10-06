@@ -94,7 +94,7 @@ void makeDataset(
 int main()
 {
   // -----------------------------------------------------------------------
-  // 0) 建模：与其它示例一样，从源码树的 URDF 建链（base_link -> link6）。
+  // 0) 建模：与其它示例一样，从源码树的 URDF 建链（base_link -> link4）。
   // -----------------------------------------------------------------------
   const std::string urdf_file = std::string(KDL_TOOLS_MODEL_DIR) + "/robotic_arm.urdf";
   KDL::Chain chain;
@@ -202,6 +202,28 @@ int main()
       "      %-16s 基参数值 = %+.6e   （URDF 对应项 = %+.6e）\n",
       kdl_identification::parameterLabel(chain, index).c_str(), solution.parameters(index),
       beta_true(index));
+  }
+
+  // -----------------------------------------------------------------------
+  // 7) 结构性不可辨识的参数：回归列对**任何**激励都恒为零。
+  //    典型例子是第一连杆（基座固定）——它的惯性只可能进入 τ1，而 τ1 里只有
+  //    绕关节轴的那一个分量起作用，其余 9 个参数在解析上与 τ 无关。
+  //    这里直接看列范数，把"不可辨识"从"辨识不出来"里区分开。
+  // -----------------------------------------------------------------------
+  {
+    const double max_norm = train_regressor.regressor.colwise().norm().maxCoeff();
+    std::printf(
+      "\n[7] 结构性不可辨识的参数（回归列范数 ≤ 1e-10 × 最大列范数 = %.3e）：\n", max_norm);
+    unsigned int dead = 0;
+    for (unsigned int index = 0; index < params; ++index) {
+      if (train_regressor.regressor.col(index).norm() <= max_norm * 1e-10) {
+        std::printf("      %s\n", kdl_identification::parameterLabel(chain, index).c_str());
+        ++dead;
+      }
+    }
+    std::printf(
+      "      共 %u / %u 个（其余 %u 个只是被基参数组合覆盖，不是没有影响）\n", dead, params,
+      params - dead);
   }
 
   const bool ok = roundtrip_error < 1e-9 && regressor_consistency < 1e-9 &&

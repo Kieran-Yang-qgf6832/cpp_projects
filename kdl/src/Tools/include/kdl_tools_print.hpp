@@ -60,11 +60,11 @@ void printChain(const KDL::Chain & chain, std::ostream & os = std::cout);
  * @param tree 待打印的树。
  * @param os   输出流，默认 std::cout。
  *
- * @note 输出形如：
- *         [root] world
- *           └─ world_to_base (fixed)
- *                └─ joint1 (revolute)
- *                   ...
+ * @note 输出形如（当前 4 轴模型，根 link 就是 base_link，没有 world link）：
+ *         [root] base_link
+ *           └─ joint1 (RotAxis(绕轴转))  -> link1
+ *             └─ joint2 (RotAxis(绕轴转))  -> link2
+ *               ...
  *       缩进表示树中层级，括号里是关节类型。
  */
 void printTree(const KDL::Tree & tree, std::ostream & os = std::cout);

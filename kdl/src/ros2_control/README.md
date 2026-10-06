@@ -90,11 +90,10 @@
 | `joint1` | `joint1` | `<motor name="motor1" gear="1" ctrlrange="-50 50">` | **effort** | position/velocity/effort |
 | `joint2` | `joint2` | `motor2`（±50） | effort | 同上 |
 | `joint3` | `joint3` | `motor3`（±50） | effort | 同上 |
-| `joint4` | `joint4` | `motor4`（±100） | effort | 同上 |
-| `joint5` | `joint5` | `motor5`（±50） | effort | 同上 |
-| `joint6` | `joint6` | `motor6`（±50） | effort | 同上 |
+| `joint4` | `joint4` | `motor4`（±50） | effort | 同上 |
 
-* **关节**：`src/model/robotic_arm.urdf` 里的 `joint1..joint6`（revolute，行程见 `<limit>`）。
+* **关节**：`src/model/robotic_arm.urdf` 里的 `joint1..joint4`（revolute，行程见 `<limit>`；
+  四个关节的 `<limit effort>` 均为 50 N·m）。
 * **执行器**：MJCF 的 `<actuator>` 用 **`<motor>` 纯力矩**，`ctrl` 的语义就是关节力矩 [N·m]
   （`gear=1`，插件不做缩放），与 ros2_control 的 `effort` 命令接口天然对应。
 * ⚠️ **`<position>` 与 `<motor>` 是编译期二选一、不能运行期切换**：effort 命令接口对
@@ -171,10 +170,14 @@ launch 内部顺序（不要随意打乱）：
 [controller_manager]: Using ROS clock for triggering controller manager cycles.
 [controller_manager]: Received robot description from topic.
 [MujocoSystemInterface]: Loading 'mujoco_model' from: '.../share/kdl_tools/model/scene_torque.xml'
-[MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'joint1'   (×6)
+[MujocoSystemInterface]: Using MuJoCo motor or custom actuator for the joint : 'joint1'   (×4)
 [controller_manager]: Loading controller : 'kdl_effort_controller' of type 'kdl_tools/KdlEffortController'
-[kdl_effort_controller]: 已配置：6 个关节，参考话题 /control_reference，增益来自 .../config/mujoco_pids.yaml
-[MujocoSystemInterface]: Joint joint1: effort control enabled (position, velocity disabled)   (×6)
+[kdl_effort_controller]: 已配置：4 个关节，参考话题 /control_reference，增益来自 .../config/mujoco_pids.yaml
+[kdl_effort_controller]:   joint1: p=80.290 i=0.000 d=10.710 u=[-50.000,50.000] i_clamp=[-1.000,1.000]
+[kdl_effort_controller]:   joint2: p=18.620 i=0.000 d=2.483  u=[-50.000,50.000] i_clamp=[-1.000,1.000]
+[kdl_effort_controller]:   joint3: p=1.900  i=0.000 d=0.078  u=[-50.000,50.000] i_clamp=[-1.000,1.000]
+[kdl_effort_controller]:   joint4: p=0.355  i=0.000 d=0.047  u=[-50.000,50.000] i_clamp=[-1.000,1.000]
+[MujocoSystemInterface]: Joint joint1: effort control enabled (position, velocity disabled)   (×4)
 [kdl_effort_controller]: 已激活：进入重力锁位
 ```
 
@@ -263,7 +266,7 @@ ros2 topic echo /kdl_effort_controller/status --once
 
 # 5) 发一条任务（需要 with_bridge launch）
 ros2 service call /control_task kdl_tools/srv/ControlTask \
-  "{task_type: 0, goal_joint: [0.5,-0.4,0.6,0.3,0.2,0.5], duration: 8.0}"
+  "{task_type: 0, goal_joint: [1.0,-1.0,1.2,0.8], duration: 0.0}"
 
 # 6) 暂停 / 单步 / 复位（研究控制细节时很好用）
 ros2 service call /mujoco_ros2_control_node/set_pause \
@@ -314,8 +317,9 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 
 | 用例 | 结果 |
 |---|---|
-| 关节空间 `[0.5,-0.4,0.6,0.3,0.2,0.5]`，`duration: 8.0` | `error_code=0`；稳态 `[0.49999,-0.39999,0.59994,0.30006,0.20004,0.49999]`，**最大残差 < 1e-4 rad** |
-| 关节空间 `[0.2,-0.3,0.4,0.1,0.1,0.2]`，`duration: 8.0` | `error_code=0`；稳态 `[0.20000,-0.30000,0.40001,0.09998,0.09999,0.20000]` |
+| 关节空间 `[1.0,-1.0,1.2,0.8]`（起 `[0.87,2.40,0.30,0.96]`），`duration: 0` → 自动 6.50 s | `error_code=0`；稳态 `[1.0000,-1.0000,1.2000,0.8000]`，**残差 0.0000 rad**，零过冲 |
+| 关节空间 `[0.0,0.8,0.0,1.4]`，`duration: 0` → 自动 3.44 s | `error_code=0`；稳态 `[0.0000,0.8000,0.0000,1.4000]`，**残差 0.0000 rad** |
+| 关节空间 `[1.2,-1.2,1.4,0.6]`，`duration: 0` → 自动 3.83 s | `error_code=0`；稳态 `[1.2000,-1.2000,1.4000,0.6000]`，**残差 0.0000 rad**，零过冲 |
 
 > 过程中遇到的 5 个问题（教学库重力符号、PID 不可用、自由下落、假自碰撞、完成判据）
 > 的现象与排查见 [`力矩控制问题报告.md`](./力矩控制问题报告.md)。
@@ -347,7 +351,7 @@ ros2 launch kdl_tools arm_mujoco_control_with_bridge.launch.py headless:=true
 
 # 关节空间：目标关节角 + 8 s
 ros2 service call /control_task kdl_tools/srv/ControlTask \
-  "{task_type: 0, goal_joint: [0.5, -0.4, 0.6, 0.3, 0.2, 0.5], duration: 8.0}"
+  "{task_type: 0, goal_joint: [1.0, -1.0, 1.2, 0.8], duration: 0.0}"
 
 # 笛卡尔空间：目标末端位姿（相对 base_link），duration <= 0 表示自动定时
 ros2 service call /control_task kdl_tools/srv/ControlTask \
@@ -389,20 +393,20 @@ kdl_tools.srv.ControlTask_Response(error_code=0, success=True,
 | `min_duration` | 1.0 s | 自动定时（`duration <= 0`）的下限：底层只保证速度/加速度上限，而 jerk ~ Δ/T³，位移小的时候会给出过短的 T 导致不可行。设 0 = 完全听底层 |
 | `tracking_tolerance` | 0.05 rad | **终点到位自检阈值**：控制器"跑完时间"后，节点等机械臂停稳再核对残差，超阈值返回 `error_code=8` |
 | `result_timeout_margin` | 5.0 s | 等执行结果的余量（墙钟） |
-| `max_velocity` 等 | `1.0 / [30,30,30,80,80,80] / 100` | `duration <= 0` 时自动定时的依据 |
+| `max_velocity` 等 | `1.0 / [30,30,30,30] / 100` | `duration <= 0` 时自动定时的依据 |
 
 `kdl_effort_controller`（控制器参数）：
 
 | 参数 | 默认 | 作用 |
 |---|---|---|
-| `joints` | `joint1..joint6` | 关节顺序（必须与消息 `joint_names` 是同一集合） |
+| `joints` | `joint1..joint4` | 关节顺序（必须与消息 `joint_names` 是同一集合） |
 | `reference_topic` | `/control_reference` | 参考轨迹话题 |
 | `urdf_file` | 空 = `share/kdl_tools/model/robotic_arm.urdf` | 建 KDL 链做重力前馈 |
 | `pid_config_file` | 空 = `share/kdl_tools/config/mujoco_pids.yaml` | PID 增益来源 |
 | `feedforward` | `true` | 是否使用轨迹点里的 `effort` 作为前馈（关闭则执行期只有 PD，空闲仍有重力补偿） |
 | `status_publish_rate` | 100 Hz | `~/status` 发布频率 |
 
-`joint_names`（默认 `joint1..joint6`）决定 `JointTrajectory` 消息里的顺序，必须与
+`joint_names`（默认 `joint1..joint4`）决定 `JointTrajectory` 消息里的顺序，必须与
 `controllers.yaml` 的 `kdl_effort_controller.joints` 一致；解算节点只按**名字**把链的关节映射到
 消息里，映射不成立（少关节/多关节/名字对不上）会**直接启动失败**并打印链上的关节名。
 
@@ -417,10 +421,15 @@ kdl_tools.srv.ControlTask_Response(error_code=0, success=True,
 
 | 用例 | 结果 |
 |---|---|
-| 关节空间 `[0.5,-0.4,0.6,0.3,0.2,0.5]`，`duration: 8.0` | `error_code=0`；稳态最大残差 **< 1e-4 rad** |
-| 关节空间 `[0.2,-0.3,0.4,0.1,0.1,0.2]`，`duration: 8.0` | `error_code=0`；稳态最大残差 **< 1e-4 rad** |
+| 关节空间 `[1.0,-1.0,1.2,0.8]`（起 `[0.87,2.40,0.30,0.96]`），`duration: 0` → 自动 6.50 s | `error_code=0`；四轴终点残差 **0.0000 rad**，零过冲 |
+| 关节空间 `[0.0,0.8,0.0,1.4]`，`duration: 0` → 自动 3.44 s | `error_code=0`；四轴终点残差 **0.0000 rad**，静止后速度 5e−14 rad/s |
 | 负向：关节数给错 / 未知 `task_type` / 目标越界 | `error_code` 分别是 2 / 2 / 3 |
-| 终点被自碰撞卡住（排除前） | `error_code=8`，`message` 指出具体关节与残差 |
+| 负向：`duration` 给得过短（速度峰值超 `max_velocity`） | `error_code=3`，`message` 给出具体关节与峰值速度 |
+| 终点未到位（`tracking_tolerance` 超阈值） | `error_code=8`，`message` 给出具体关节与残差 |
+
+> ⚠️ **已知残留问题**：大行程轨迹在**峰值速度段**会出现 0.1~0.2 s 的高频振荡，实测关节速度冲到
+> 14~22 rad/s（URDF 上限 10 rad/s），随后自恢复且不影响最终精度。7 次实测中出现 5 次。
+> 详见 [`力矩控制问题报告.md`](./力矩控制问题报告.md) 文末注记。
 
 更细的设计与决策见 [`PLAN_TORQUE.md`](./PLAN_TORQUE.md)；问题排查见
 [`力矩控制问题报告.md`](./力矩控制问题报告.md)。

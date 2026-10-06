@@ -3,7 +3,7 @@
 //
 // 运行方式（先 colcon build，再 source install/setup.bash）：
 //   ros2 run kdl_tools build_from_urdf
-//   ros2 run kdl_tools build_from_urdf --base_link world --tip_link link6
+//   ros2 run kdl_tools build_from_urdf --tip_link link4
 //
 // 本示例演示三件事：
 //   1) URDF 文件  -> KDL::Tree          （buildTreeFromUrdfFile）
@@ -54,7 +54,7 @@ void printUsage()
 {
   std::cout
     << "usage: build_from_urdf [--base_link <name>] [--tip_link <name>]\n"
-    << "  default: base_link -> link6\n";
+    << "  default: base_link -> link4\n";
 }
 
 }  // namespace
