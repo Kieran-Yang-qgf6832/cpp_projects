@@ -4,6 +4,46 @@
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
   name="robotic_arm">
+  <!--
+    ==========================================================================
+    为什么根 link 是一个**无惯量的 world**，而不是直接拿 base_link 当根
+    ==========================================================================
+    base_link 是有质量的实体（0.446 kg）。把它当 URDF 的根时，kdl_parser 每次
+    解析都会刷一条警告：
+
+        The root link base_link has an inertia specified in the URDF, but KDL
+        does not support a root link with an inertia.
+
+    这条警告不是噪声，它说的是实话：KDL 的 Chain 从第一个**可动**关节开始，
+    根 link 的惯量它根本没有地方放，只能丢掉。所以那个 0.446 kg 写在 URDF 里
+    从来就没有被任何消费者用过（MuJoCo 也不用它——base_link 在 MJCF 里是
+    worldbody 的子 body，被焊死在世界上）。
+
+    加一个无惯量的 world 当根、再用固定关节接到 base_link，就同时解决两件事：
+      1. 警告消失（根 link 没有 <inertial> 了）；
+      2. **URDF 和 MJCF 的结构对齐了** —— MJCF 那边本来就是
+         <worldbody><body name="base_link">…，根是 world，base_link 是它的孩子。
+         原来两边不一致，只是没人注意。
+
+    base_link 自己的惯量**一个字都没动**：它是真实数据，将来要建模浮动基座
+    （给这个固定关节换个 free joint）时就会用上。删掉它才是错的。
+    ==========================================================================
+  -->
+  <link name="world" />
+
+  <!-- 固定关节：world → base_link，单位变换（不动基座位姿，只是把根让出来） -->
+  <joint
+    name="world_to_base"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="world" />
+    <child
+      link="base_link" />
+  </joint>
+
   <link
     name="base_link">
     <inertial>
