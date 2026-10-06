@@ -64,6 +64,7 @@ add_library(kdl_kinematics_lib
   src/Kinematics/src/kdl_fk.cpp
   src/Kinematics/src/kdl_jacobian.cpp
   src/Kinematics/src/kdl_ik.cpp
+  src/Kinematics/src/kdl_ik_analytic.cpp
   src/Kinematics/src/kdl_velocity.cpp
   src/Kinematics/src/kdl_acceleration.cpp
   src/Kinematics/src/kdl_kinematics_print.cpp
@@ -180,6 +181,13 @@ target_compile_definitions(fk_ik_demo PRIVATE
   KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
 )
 target_link_libraries(fk_ik_demo PRIVATE kdl_tools_lib kdl_kinematics_lib)
+
+# 4 轴臂解析逆解示例：几何提取、闭式解、穷举往返校验，并与数值解对比。
+add_executable(ik_analytic_demo example/ik_analytic_demo.cpp)
+target_compile_definitions(ik_analytic_demo PRIVATE
+  KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
+)
+target_link_libraries(ik_analytic_demo PRIVATE kdl_tools_lib kdl_kinematics_lib)
 
 # 速度 / 加速度转换示例：演示 J·q̇、J̇·q̇ 与伪逆求逆。
 add_executable(vel_acc_demo example/vel_acc_demo.cpp)
@@ -320,8 +328,8 @@ install(DIRECTORY src/ParameterIdentification/launch
 # ---------------------------------------------------------------------------
 install(TARGETS kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
         kdl_control_lib kdl_identification_lib kdl_identify_trajectory_lib
-        build_from_urdf fk_ik_demo vel_acc_demo dynamics_demo quintic_demo cartesian_demo
-        control_demo regressor_lsq_demo fourier_demo
+        build_from_urdf fk_ik_demo ik_analytic_demo vel_acc_demo dynamics_demo quintic_demo
+        cartesian_demo control_demo regressor_lsq_demo fourier_demo
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
