@@ -109,9 +109,34 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # --- 3. 控制器加载/激活 --------------------------------------------------
-    # 顺序有讲究：先广播器，控制器才有状态可读。
-    # --controller-manager-timeout 放大到 60 s：首次加载 MJCF + STL 网格较慢，
-    # 而且 CM 还要等仿真时钟跑起来（wait_until_started）才会响应。
+    # ⚠️ 这一段的注释曾有三处与事实不符，已按源码 + 实测更正。（写在这里是因为它们
+    #    每一条都真的误导过排查方向。）
+    #
+    # (1) 原："CM 还要等仿真时钟跑起来（wait_until_started）才会响应" —— 错。
+    #     那行 wait_until_started() 被**刻意放在控制循环里**，就是为了不阻塞服务
+    #     （mujoco_ros2_control_node.cpp 里标着 CHANGED FROM UPSTREAM 的那段：
+    #     "So instead, we just wait in the control loop so that the hardware interface
+    #     can still start and run."）。所以**加载/激活控制器不依赖 sim_time**，
+    #     只有控制循环的 read/update/write 依赖它。反证：下面两个 spawner 进程在
+    #     硬件 activate **之前**就已经启动了。
+    #
+    # (2) 原："顺序有讲究：先广播器，控制器才有状态可读" —— 不准，两处问题：
+    #       · 顺序**不是这个列表决定的**。两个 spawner 进程在硬件 activate 之前就被
+    #         同时拉起，谁先干活由 spawner.py 的文件锁决定，是一场**竞态**。实测两种
+    #         顺序都出现过：一次 jsb 先，一次 kdl_effort_controller 先。
+    #       · kdl_effort_controller **不依赖** jsb：它读的是硬件的 state_interface，
+    #         不是 /joint_states（它唯一的话题订阅是 /control_reference）。两种顺序下
+    #         任务都能正常跑通。真正需要 /joint_states 的是 kdl_control_node，而它按需
+    #         惰性查询（收不到就返回 error_code=1），同样不受这里影响。
+    #       ⇒ 这个竞态还直接决定无控窗口的长短：effort 先赢 ≈0.32 s，jsb 先赢 ≈0.75 s。
+    #         想让顺序确定下来，得把两个 spawner 合成一个进程（spawner 支持
+    #         `controller_names [controller_names ...]`），顺带省掉一次 DDS 发现。当前没做。
+    #
+    # (3) --controller-manager-timeout 60：spawner 等 CM 的服务出现，最多等 60 s，超时即
+    #     报错退出。**该参数默认值是 0.0，含义是无限等**（每 10 s 重试一次并打一条
+    #     warn，见 controller_manager_services.call_service 的说明）。所以传 60 并不是
+    #     "把默认值放大"，而是**给无限等待加个上限**：CM 实际不到 1 s 就绪（其中加载
+    #     MJCF + STL 网格约 0.23 s），60 s 纯属兜底，免得配置错了之后 launch 静静挂着。
     for controller in ["joint_state_broadcaster", "kdl_effort_controller"]:
         nodes.append(
             Node(
