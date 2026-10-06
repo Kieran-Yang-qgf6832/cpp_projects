@@ -354,9 +354,14 @@ ros2 service call /control_task kdl_tools/srv/ControlTask \
   "{task_type: 0, goal_joint: [1.0, -1.0, 1.2, 0.8], duration: 0.0}"
 
 # 笛卡尔空间：目标末端位姿（相对 base_link），duration <= 0 表示自动定时
+# ⚠️ 本臂是 4 轴，笛卡尔任务空间只有 4 维（工具点位置 + 绕工具轴自转）：
+#    · 位置必须可达 —— 本臂展长约 0.76 m，旧文档里那个 z=1.06 的例子根本够不着；
+#    · 姿态里只有"绕工具轴自转"那一维被采用，其余会被投影掉。
+#    详见 src/communication/srv/ControlTask.srv 的注释。
+# 下面这组值 = FK(q=[0.5, -0.4, 0.6, 0.3])，一定可达（可用于冒烟测试）。
 ros2 service call /control_task kdl_tools/srv/ControlTask \
-  "{task_type: 1, duration: 0.0, goal_pose: {position: {x: 0.54, y: 0.14, z: 1.06},
-    orientation: {x: 0.943, y: -0.019, z: -0.332, w: 0.011}}}"
+  "{task_type: 1, duration: 0.0, goal_pose: {position: {x: 0.455876, y: -0.021518, z: 0.643029},
+    orientation: {x: -0.479751, y: -0.222135, z: -0.027509, w: 0.848374}}}"
 
 ros2 interface show kdl_tools/srv/ControlTask     # 看完整字段与错误码说明
 ```

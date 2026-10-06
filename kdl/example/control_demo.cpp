@@ -7,7 +7,8 @@
 //   1) 装配上下文
 //   2) 分派的健壮性（未实现的任务、尺寸错误、目标越界都必须是"失败 + 原因"）
 //   3) 任务1：关节空间运动（自动定时是怎么算出来的、固定时长过快怎么报错）
-//   4) 任务2：笛卡尔空间运动（单段/多路点、kStop/kPassThrough、FK 闭环自检）
+//   4) 任务2：笛卡尔空间运动（4 维任务空间、单段/多路点、kStop/kPassThrough、
+//      正/负向用例、FK 闭环自检）
 //   5) 动力学：力矩前馈、与重力项对照、力矩上限超限的负向用例
 //   6) 导出 CSV
 
@@ -28,6 +29,7 @@
 #include "router/kdl_control_print.hpp"
 #include "kdl_dynparam.hpp"
 #include "kdl_fk.hpp"
+#include "kdl_ik_analytic.hpp"
 #include "kdl_interpolation_print.hpp"
 #include "tasks/kdl_joint_space_task.hpp"
 #include "kdl_quintic.hpp"
@@ -121,6 +123,12 @@ bool writeJointCsv(
  * @note 这里的参考轨迹是示例自己按同样的路点与时长重新构建的（用的都是公开接口），
  *       目的只是把对照曲线导出来看；**任务内部的自检结论以
  *       ControlResult::position_error / orientation_error 为准**，两者用的是同一套判据。
+ * @note 姿态那两列要分开看，别混：
+ *         roll_err  绕工具轴滚转的偏差 —— 4 轴臂**能控制**的那一维，应当接近 0；
+ *         rot_err   完整姿态夹角 —— 含"工具轴指向"那一维，而 4 轴臂够不着它，
+ *                   所以它天然不会趋于 0（本示例里能到 0.05 rad ≈ 3°）。
+ *       把 rot_err 当成跟踪误差会得出"控制器不行"的错误结论，实际是目标姿态本身
+ *       超出了构型能力。详见 kdl_ik_analytic.hpp 第七节。
  */
 bool writeCartesianCsv(
   const kdl_interpolation::CartesianTrajectory & reference,
@@ -132,7 +140,7 @@ bool writeCartesianCsv(
     return false;
   }
 
-  csv << "t,ref_x,ref_y,ref_z,fk_x,fk_y,fk_z,pos_err,rot_err\n";
+  csv << "t,ref_x,ref_y,ref_z,fk_x,fk_y,fk_z,pos_err,roll_err,rot_err\n";
 
   const double total = reference.duration();
   for (unsigned int k = 0; k < kCsvSamples; ++k) {
@@ -151,9 +159,25 @@ bool writeCartesianCsv(
 
     KDL::Vector axis;
     const double rot_err = (state.pose.M.Inverse() * fk.M).GetRotAngle(axis, 1e-8);
+
+    // 滚转参考系取实到位形的（必须和参考姿态用同一个工具轴，否则两者不可比）。
+    double roll_err = 0.0;
+    kdl_kinematics::RollFrame frame;
+    if (kdl_kinematics::makeRollFrame(chain, q, frame)) {
+      roll_err = kdl_kinematics::rollAngle(fk.M, frame) -
+                 kdl_kinematics::rollAngle(state.pose.M, frame);
+      while (roll_err > 3.14159265358979323846) {
+        roll_err -= 2.0 * 3.14159265358979323846;
+      }
+      while (roll_err <= -3.14159265358979323846) {
+        roll_err += 2.0 * 3.14159265358979323846;
+      }
+      roll_err = std::abs(roll_err);
+    }
+
     csv << t << "," << state.pose.p.x() << "," << state.pose.p.y() << "," << state.pose.p.z() << ","
         << fk.p.x() << "," << fk.p.y() << "," << fk.p.z() << "," << (fk.p - state.pose.p).Norm()
-        << "," << rot_err << "\n";
+        << "," << roll_err << "," << rot_err << "\n";
   }
   return true;
 }
@@ -305,6 +329,11 @@ int main(int argc, char ** argv)
   std::cout << "\n=============================================================\n"
             << "4) 任务2：笛卡尔空间运动\n"
             << "=============================================================\n";
+  std::cout << "  本臂是 4 轴（平面 2R + 2 自由度腕部），笛卡尔任务空间只有 4 维：\n"
+            << "    工具点位置（3）+ 绕工具轴自转（1）。\n"
+            << "  工具轴的**指向**不需要给——它由位置和肘部分支唯一决定。所以下面给的\n"
+            << "  目标位姿里，姿态部分只有「绕工具轴自转」那一维被采用，其余被投影掉；\n"
+            << "  自检也相应分两笔账（见 ControlResult 的 orientation_error / pose_residual）。\n";
 
   // 目标位姿直接用 FK(q_goal) 造出来，保证"确实可达"。
   KDL::Frame goal_pose;
@@ -416,8 +445,14 @@ int main(int argc, char ** argv)
     }
   }
 
-  // ---- 4c. 负向用例：起点取在奇异位形（零位 = 直臂）----
-  std::cout << "\n  --- 4c) 负向用例：起点取在奇异位形（零位 = 直臂）\n";
+  // ---- 4c. 起点取在奇异位形（零位 = 直臂）----
+  //
+  // 这一节原来是个**负向**用例：6 轴时代起点取零位会让逐点逆解失败，于是"如实拒绝"
+  // 被当成正确行为。换成 4 轴解析解之后它不再失败了 —— 这不是判据放松了，而是原来的
+  // 失败本来就不是构型问题：数值解在近奇异位形上会沿零空间乱走，而闭式解没有这个
+  // 自由度。所以这里如实改标为**正向**用例，并把理由写出来，而不是留着一段
+  // "应该失败却成功"的文字。
+  std::cout << "\n  --- 4c) 起点取在奇异位形（零位 = 直臂）\n";
   {
     kdl_control::TaskRequest singular_req;
     singular_req.type = kdl_control::TaskType::kCartesianSpace;
@@ -427,8 +462,30 @@ int main(int argc, char ** argv)
     const auto singular_result = router.dispatch(singular_req, q_zero, qdot_zero);
     kdl_control::printControlResult(singular_result);
     std::cout << "    说明：零位是直臂构型（最小奇异值 ≈ 0.0185，工作构型 0.18~0.21），\n"
-              << "          比工作构型更接近奇异，逐点逆解在那里更不稳定。\n"
-              << "          解算如实拒绝，而不是交出一条看上去能跑、实际乱抖的轨迹。\n";
+              << "          离奇异面只有 1.85 倍余量（阈值 0.01），但**依然判为可行**。\n"
+              << "          原因：解析解是闭式的，不存在「在零空间里乱走」这个自由度，\n"
+              << "          近奇异只会让关节速度变大，而那是关节限位该管的事（重建时会查）。\n"
+              << "          对照：换成数值解时同一组输入会在中途报「梯度消失」而失败——\n"
+              << "          那是数值解的病，不是构型的病。\n";
+  }
+
+  // ---- 4d. 负向用例：目标位置超出工作空间 ----
+  //
+  // 4c 变成正向用例之后，这一节必须补一个**真**的负向用例，否则第 4 节的失败路径
+  // 就没人覆盖了。最直接的一种不可行就是"够不着"：位置本身超出臂长。
+  std::cout << "\n  --- 4d) 负向用例：目标位置超出工作空间\n";
+  {
+    kdl_control::TaskRequest far_req;
+    far_req.type = kdl_control::TaskType::kCartesianSpace;
+    far_req.name = "cart_out_of_reach";
+    far_req.goal_pose = goal_pose;
+    far_req.goal_pose.p = KDL::Vector(1.2, 0.0, 0.5);  // 离基座约 1.3 m，远超臂长
+
+    const auto far_result = router.dispatch(far_req, q_start, qdot_zero);
+    kdl_control::printControlResult(far_result);
+    std::cout << "    说明：本臂展长约 0.76 m（L1 0.374 + L2 0.341 + 腕部 0.047），\n"
+              << "          目标 |p| ≈ 1.30 m 根本够不着。解析解会直接报「目标不可达」，\n"
+              << "          而不是硬凑一个「位置差很远但姿态很像」的解交出去。\n";
   }
 
   // =========================================================================

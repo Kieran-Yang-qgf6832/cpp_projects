@@ -449,6 +449,11 @@ bridge_node = Node(package="kdl_tools", executable="control_bridge_node",
 
 ### 11.2 实测（`headless:=true`，MuJoCo 3.4.0 / ROS 2 Jazzy）
 
+> ⚠️ **历史记录（2026-10 换臂后补）**：本节是**旧 6 轴臂**（`joint1..joint6`）上跑出来的
+> 原始记录，里面的关节数、关节名、行程与精度数字都**不适用于现在的 4 轴臂**。
+> 换臂后的实测记录在 `README.md` §10.4；换臂的原因与影响见 `力矩控制问题报告.md`
+> 开头的历史说明。本节保留原文不改写 —— 改写等于伪造实测。
+
 启动约 1 s 后 `arm_controller` 与 `joint_state_broadcaster` 都是 `active`，
 `/control_task` 可见；`control_bridge` 的启动横幅：
 

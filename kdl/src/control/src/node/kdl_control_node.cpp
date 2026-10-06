@@ -385,10 +385,14 @@ bool ControlNode::setupContext(std::string & message)
 
   // 速度/加速度/jerk 上限：URDF 里只有位置行程与力矩上限，这三项是"使用场景"的信息，
   // 必须在这里补上（否则自动定时会直接报"无法自动定时"）。默认值与旧桥一致。
+  //
+  // 加速度这里原来有个 `(n == 6) ? {30,30,30,80,80,80} : vector(n, 30.0)` 的特例，
+  // 意思是"给 6 轴臂的腕部关节 80 rad/s²"。4 轴臂（n = 4）走不到那个分支，于是
+  // joint4 实际拿到的是 30 —— 特例没生效，也没人发现。与其留一个"看起来在照顾腕部、
+  // 其实永远不生效"的分支（换模型时还会误导人），不如去掉：四个关节统一 30。
+  // 真要让腕部更快，就显式写出关节名/索引，别靠关节数去猜。
   const std::vector<double> default_velocity(n, 1.0);                       // rad/s
-  const std::vector<double> default_acceleration =                           // rad/s²
-    (n == 6) ? std::vector<double>{30.0, 30.0, 30.0, 80.0, 80.0, 80.0}
-             : std::vector<double>(n, 30.0);
+  const std::vector<double> default_acceleration(n, 30.0);                  // rad/s²
   const std::vector<double> default_jerk(n, 100.0);                          // rad/s³
 
   const auto velocity = declare_parameter<std::vector<double>>("max_velocity", default_velocity);
@@ -686,14 +690,28 @@ void ControlNode::controlTaskCallback(
 
   // 自动定时 + 下限重算（同旧桥）：底层的自动定时公式只保证速度/加速度上限，
   // 而五次插值的 jerk 是 ~Δ/T³ 量级，位移很小时 jerk 会直接超出上限。
+  //
+  // ⚠️ 这个重算**只在"自动定时给出的时长太短"时才有意义**：它把时长设成下限
+  // min_duration_，也就是把 T 改小。如果第一次是**别的原因**失败（目标够不着、
+  // IK 不收敛、限位超限……），重算只会让失败得更彻底，而且会把第一次那个更准确的
+  // 原因盖掉。实测（4 轴臂，够不着的笛卡尔目标）：
+  //     第一次   → "解析逆解失败：目标点超出工作空间"
+  //     重算之后 → "第 0 段的线速度峰值 1.421345 m/s 超过上限 0.500000 m/s"
+  // 调用者会顺着第二条去调速度限位，方向完全错了。所以**第一次的 message 必须留住**。
   if (auto_duration && min_duration_ > 0.0 &&
     (!result.success || result.duration < min_duration_))
   {
+    const kdl_control::ControlResult first = result;
     RCLCPP_INFO(
-      get_logger(), "自动定时结果 %.4f s 低于下限 %.4f s（或解算失败），按下限重算",
-      result.duration, min_duration_);
+      get_logger(), "%s，按下限 %.4f s 重算（第一次：%s）",
+      first.success ? "自动定时结果低于下限" : "自动定时解算失败", min_duration_,
+      first.success ? "成功" : first.message.c_str());
     task.duration = min_duration_;
     result = router_.dispatch(task, q_now, qdot_now);
+    if (!result.success && !first.success) {
+      result.message = first.message + "（另按 min_duration = " + std::to_string(min_duration_) +
+                       " s 重算一次，仍失败：" + result.message + "）";
+    }
   }
 
   response->trajectory_duration = result.duration;
@@ -795,10 +813,18 @@ void ControlNode::controlTaskCallback(
 
   response->error_code = code;
   response->success = (code == 0);
-  response->message =
+  std::string reply =
     response->success ?
     ("执行完成：轨迹 " + std::to_string(result.duration) + " s") :
     ("控制器返回 error_code = " + std::to_string(code) + "：" + status_message);
+  if (response->success && result.pose_residual > 0.0) {
+    // 4 轴臂够不着参考姿态里"工具轴指向"那一维，这个残差天然不为 0（见
+    // ControlResult::pose_residual）。在这里如实报出来，免得调用者把"姿态跟不到
+    // 参考值"当成控制器的问题 —— 那是构型能力，不是跟踪误差。
+    reply += "；参考姿态与实到姿态的完整夹角 " + std::to_string(result.pose_residual) +
+             " rad（4 轴臂够不着工具轴指向，非跟踪误差）";
+  }
+  response->message = reply;
 }
 
 void ControlNode::fillError(

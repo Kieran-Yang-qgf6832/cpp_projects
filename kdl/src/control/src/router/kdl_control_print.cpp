@@ -102,6 +102,13 @@ void printControlResult(const ControlResult & result, std::ostream & os)
       os << "  闭环自检: 位置残差峰值 " << result.position_error << " m, 姿态残差峰值 "
          << result.orientation_error << " rad, IK 失败 " << result.ik_failures
          << " 点, 路径最小奇异值 " << result.min_singular_value << "\n";
+      if (result.pose_residual > 0.0) {
+        // 只在 4 轴解析解模式下非 0（见 ControlResult::pose_residual 的注释）：
+        // 姿态残差峰值只算了"绕工具轴滚转"那一维，这里是完整夹角，用来回答
+        // "要求的姿态离这个臂能到的姿态流形有多远"。
+        os << "            其中参考姿态与实到姿态的完整夹角峰值 " << result.pose_residual
+           << " rad（该臂够不着工具轴指向，此数不计入判定）\n";
+      }
     } else {
       os << "  闭环自检: 未执行（尚未生成关节轨迹；IK 失败 " << result.ik_failures << " 点）\n";
     }
