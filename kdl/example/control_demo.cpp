@@ -41,7 +41,6 @@
 namespace
 {
 
-constexpr unsigned int kNumJoints = 6;
 constexpr unsigned int kCsvSamples = 201;
 
 /// 由初始化列表构造关节向量，省掉一堆 resize + 下标赋值。
@@ -193,10 +192,8 @@ int main(int argc, char ** argv)
   // 加速度上限**不能所有关节一刀切**：靠近末端的关节力臂只有 0.1 m 量级，末端要做出
   // 2 m/s² 的加速度，该关节就得转 20 rad/s² 左右（q̈ ≈ a / r）。这也是笛卡尔限位
   // 满足之后、关节侧仍然可能判"不可行"的原因 —— 两个空间的量纲不是一回事。
-  //
-  // ⚠️ 下面这行仍是旧 6 轴臂的 6 个取值，与本模型的 4 个关节不匹配，会让本示例在
-  //    "状态向量长度"校验处失败。属待修项（与 q_start/q_goal 的 6 元素初值同源）。
-  ctx.joint_limits.max_acceleration = jnt({ 30.0, 30.0, 30.0, 80.0, 80.0, 80.0 });  // rad/s²
+  // 这里前三个关节取 30，末端关节取 80（力臂最短，需要更高的关节角加速度）。
+  ctx.joint_limits.max_acceleration = jnt({ 30.0, 30.0, 30.0, 80.0 });  // rad/s²
   ctx.joint_limits.max_jerk = filled(n, 100.0);  // rad/s³（单段示例的端点 jerk ≈ 25，可过）
   ctx.cartesian_limits.max_linear_velocity = 0.5;           // m/s
   ctx.cartesian_limits.max_linear_acceleration = 1.0;       // m/s²
@@ -212,14 +209,14 @@ int main(int argc, char ** argv)
     std::cout << "不通过 —— " << message << "\n";
   }
 
-  // 起始状态：**刻意不取全零位**。零位是"直臂"构型，正好贴在奇异面上
-  // （实测雅可比最小奇异值 0.0011，正常构型 0.12~0.16）。在那里逐点逆解不唯一，
+  // 起始状态：**刻意不取全零位**。零位是"直臂"构型，最接近奇异
+  // （实测雅可比最小奇异值 0.0185，正常构型 0.18~0.21）。在那里逐点逆解不唯一，
   // 解会在零空间方向乱窜，重建出来的速度/加速度没有物理意义。第 4c 节专门演一遍。
-  const KDL::JntArray q_start = jnt({ 0.0, -0.6, 0.8, 0.0, 0.2, 0.0 });
+  const KDL::JntArray q_start = jnt({ 0.0, -0.6, 0.8, 0.0 });
   const KDL::JntArray q_zero = filled(n, 0.0);  // 只用于奇异位形的负向用例与重力项对照
   const KDL::JntArray qdot_zero = filled(n, 0.0);
   // 关节空间任务的目标构型。
-  const KDL::JntArray q_goal = jnt({ 0.5, -0.4, 0.6, 0.3, 0.2, 0.5 });
+  const KDL::JntArray q_goal = jnt({ 0.5, -0.4, 0.6, 0.3 });
 
   // =========================================================================
   // 2) 分派的健壮性：三类"应当失败"的输入
@@ -429,8 +426,8 @@ int main(int argc, char ** argv)
 
     const auto singular_result = router.dispatch(singular_req, q_zero, qdot_zero);
     kdl_control::printControlResult(singular_result);
-    std::cout << "    说明：零位是直臂构型（最小奇异值 ≈ 0.0011），逐点逆解在那里不唯一，\n"
-              << "          解会在零空间方向乱窜、重建出的速度/加速度没有物理意义。\n"
+    std::cout << "    说明：零位是直臂构型（最小奇异值 ≈ 0.0185，工作构型 0.18~0.21），\n"
+              << "          比工作构型更接近奇异，逐点逆解在那里更不稳定。\n"
               << "          解算如实拒绝，而不是交出一条看上去能跑、实际乱抖的轨迹。\n";
   }
 
@@ -480,7 +477,8 @@ int main(int argc, char ** argv)
       std::filesystem::absolute("control_joint_trajectory.csv").string();
     if (writeJointCsv(joint_result.joint_trajectory, path)) {
       std::cout << "  已写入: " << path << "\n"
-                << "  列含义: t, q0..q5, qdot0..qdot5, qddot0..qddot5（" << kCsvSamples
+                << "  列含义: t, q0..q" << (n - 1) << ", qdot0..qdot" << (n - 1)
+                << ", qddot0..qddot" << (n - 1) << "（" << kCsvSamples
                 << " 行等间隔采样）\n";
     } else {
       std::cout << "  写入失败: " << path << "\n";
