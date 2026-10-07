@@ -144,6 +144,10 @@ cd /home/kangy/MyProjects/cpp_projects/kdl
 colcon build --paths .          # 安装 model/ 与 src/ros2_control/ 到 share/kdl_tools
 source install/setup.bash
 
+# 0.5) **每个终端都要做**：把 DDS 域从默认的 0 挪开，并且只走本机回环
+export ROS_DOMAIN_ID=42
+export ROS_LOCALHOST_ONLY=1
+
 # 1) 仿真 + 控制器（不含解算节点）
 ros2 launch kdl_tools arm_mujoco_control.launch.py                 # 带 MuJoCo 窗口
 ros2 launch kdl_tools arm_mujoco_control.launch.py headless:=true  # 无界面
@@ -152,6 +156,44 @@ ros2 launch kdl_tools arm_mujoco_control.launch.py rviz:=true      # 额外开 R
 # 2) 仿真 + 控制器 + 解算节点（要发任务就用这个）
 ros2 launch kdl_tools arm_mujoco_control_with_bridge.launch.py headless:=true
 ```
+
+### 4.0 为什么必须先把 DDS 域挪开
+
+**症状**：`/control_task` 偶尔（约十次一次）返回 `error_code=1`
+「还没收到完整的 `/joint_states`」，同时控制节点日志里反复出现
+「`/joint_states` 里缺少链上关节（或值非有限）」。重试往往就好了，看起来像随机故障。
+
+**原因不在本仓库**：本机 `ROS_DOMAIN_ID` 默认是 **0**，CycloneDDS 默认在**所有网卡**上做
+组播发现，而本机 WiFi 挂在校园网（`10.143.94.3/15`）上。同一个域里另一台机器上跑着一台
+**六足机器人**，它也在发 `/joint_states`，但内容完全不同：
+
+```
+lf_coxa_joint, lf_femur_joint, lf_tibia_joint, lm_*, lr_*, rf_*, rm_*, rr_*   (18 个关节，velocity 全是 NaN)
+```
+
+于是我们的 `joint_state_broadcaster` 和它**撞在同一个话题上**，控制节点交替收到两种帧。
+`ControlNode::jointStatesCallback`（`src/control/src/node/kdl_control_node.cpp`）只要收到一帧
+缺关节或值非有限的 `/joint_states`，就把 `state_ready_` 置回 `false`；恰好落在那一帧上的
+service 调用就返回 `error_code=1`。它以几 Hz 发、我们 50 Hz，命中概率约一成 —— 这正是
+"偶发、重试就好"的来源。
+
+**实测对比**（两次启动、同一批任务，只差环境变量）：
+
+| | 域 0（默认） | 域 42 + `ROS_LOCALHOST_ONLY=1` |
+|---|---|---|
+| `ros2 topic info /joint_states` 的发布者数 | **2** | **1**（只有 `joint_state_broadcaster`） |
+| 抓到的帧 | 300 帧我们的 + 34 帧六足的（NaN） | 全是 `joint1..joint4` |
+| 控制节点「缺少链上关节」警告 | **21 次**（跨 41 s） | **0 次** |
+| 起来后第一次调任务 | `error_code=1` | `error_code=0` |
+
+**确认它来自网络而非本机**：把本机所有 ROS 进程停掉、杀掉 CLI daemon，用
+`ros2 topic list --no-daemon` 直接发现，45 s 后域 0 上出现 `/spider/servo_target`、
+`/spider/task_cmd_vel`、`/tf` —— 此时本机一个 ROS 节点都没在跑。
+
+**处理**：`export ROS_DOMAIN_ID=42` 换个非 0 的域；再加 `export ROS_LOCALHOST_ONLY=1`
+让 CycloneDDS 只在回环上发现（最彻底，代价是不能跨机器调试）。
+两个都要设，只换域的话，校园网里碰巧也用 42 的人会再撞一次。
+**launch、`ros2 service call`、录制脚本所在的每个终端都要设**，否则它们互相看不见。
 
 launch 内部顺序（不要随意打乱）：
 
@@ -258,6 +300,7 @@ read/update/write   （500 Hz，每 2 ms 一次，恰好每步一次）
 
 ```bash
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
+export ROS_DOMAIN_ID=42 ROS_LOCALHOST_ONLY=1     # 见 §4.0：每个终端都要设
 
 # 1) 控制器 / 硬件接口状态
 ros2 control list_controllers
@@ -295,6 +338,8 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `Effort command interface ... not supported with position or velocity actuator. Skipping it.` | 用了位置版 MJCF（`<position>`） | 力矩模式必须用 `scene_torque.xml`（`<motor>`） |
+| `/control_task` 偶发返回 `error_code=1`，日志里「`/joint_states` 里缺少链上关节」 | DDS 域 0 上有**外来发布者**也在发 `/joint_states`（校园网/同事的机器），帧被交替覆盖 | **先按 §4.0 设 `ROS_DOMAIN_ID` + `ROS_LOCALHOST_ONLY=1`**；用 `ros2 topic info /joint_states -v` 确认发布者只有 1 个 |
+| 同上，但发布者确实只有 1 个 | `joint_state_broadcaster` 还没激活 | 等服务起来再调（`ros2 topic echo /joint_states --once` 能收到≠控制节点也收到了，看它自己的日志） |
 | 启动后机械臂不是从零位开始，而是"摔"到一个位形 | 控制器激活前 ~0.3 s 无控制自由下落（问题 3，**无法消除**，见该行下方说明） | 已用 MJCF 关节阻尼把落体幅度压到约 1/6 |
 | 机械臂大幅摆动 / 力矩长期饱和 | PID 增益与 `u_clamp` 不匹配（线性区太窄） | 见问题报告 §2（按 `M(q)` 反推增益） |
 | 某个关节怎么都到不了目标（时间跑完却差一截） | 多半是连杆自碰撞卡住 | 返回 `error_code=8`；见问题报告 §4 |
@@ -360,6 +405,7 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 ### 10.1 启动与调用
 
 ```bash
+# ⚠️ 先按 §4.0 设好 ROS_DOMAIN_ID 与 ROS_LOCALHOST_ONLY（本终端和 launch 终端都要设）
 ros2 launch kdl_tools arm_mujoco_control_with_bridge.launch.py headless:=true
 
 # 关节空间：目标关节角 + 8 s
