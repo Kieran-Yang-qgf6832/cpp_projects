@@ -6,7 +6,8 @@
   2. ros2_control_node      —— mujoco_ros2_control 自带的 controller_manager，
                                加载 MujocoSystemInterface 插件（"硬件"就是 MuJoCo），
                                按 update_rate=500 跑 read→update→write
-  3. spawner                —— 加载并激活 joint_state_broadcaster、kdl_effort_controller
+  3. spawner                —— 加载并激活 kdl_effort_controller、joint_state_broadcaster
+                               （一个进程、串行；顺序即参数顺序，effort 排前是为了先止住自由落体）
   4. rviz2（可选）          —— 看 TF / 机器人模型
 
 力矩控制版：MJCF 用 scene_torque.xml（<motor> 执行器），关节命令接口是 effort。

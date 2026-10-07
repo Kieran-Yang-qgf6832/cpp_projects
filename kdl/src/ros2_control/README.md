@@ -202,8 +202,10 @@ launch 内部顺序（不要随意打乱）：
    `/robot_description` —— **`ros2_control_node` 就是从这个话题取 URDF 的**；
 3. `mujoco_ros2_control/ros2_control_node`（来自 apt 包，非本仓库源码）：加载 `arm_hw` 硬件、
    构造 MuJoCo 模型、起物理线程与渲染线程，然后等 `/clock` 跑起来；
-4. `spawner` 依次加载并激活 `joint_state_broadcaster`、`kdl_effort_controller`
-   （`--controller-manager-timeout 60`，因为首次编译 MJCF+STL、等时钟可能超过默认 10 s）；
+4. `spawner` 依次加载并激活 `kdl_effort_controller`、`joint_state_broadcaster`
+   —— **一个进程、串行处理，顺序就是参数顺序**：effort 排前面是为了先止住自由落体，
+   代价是 `/joint_states` 比控制器接手晚约 40 ms（见 §7 故障表）。
+   `--controller-manager-timeout 60` 是因为首次编译 MJCF+STL、等时钟可能超过默认 10 s；
 5. （仅 `with_bridge`）`kdl_control_node`。
 
 启动成功的标志（实测日志）：
@@ -339,7 +341,7 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 |---|---|---|
 | `Effort command interface ... not supported with position or velocity actuator. Skipping it.` | 用了位置版 MJCF（`<position>`） | 力矩模式必须用 `scene_torque.xml`（`<motor>`） |
 | `/control_task` 偶发返回 `error_code=1`，日志里「`/joint_states` 里缺少链上关节」 | DDS 域 0 上有**外来发布者**也在发 `/joint_states`（校园网/同事的机器），帧被交替覆盖 | **先按 §4.0 设 `ROS_DOMAIN_ID` + `ROS_LOCALHOST_ONLY=1`**；用 `ros2 topic info /joint_states -v` 确认发布者只有 1 个 |
-| 同上，但发布者确实只有 1 个 | `joint_state_broadcaster` 还没激活 | 等服务起来再调（`ros2 topic echo /joint_states --once` 能收到≠控制节点也收到了，看它自己的日志） |
+| `/control_task` 返回 `error_code=1`，且**只在刚启动那一下**（`ros2 topic info /joint_states -v` 确认发布者只有 1 个） | 启动瞬态：spawner 是**串行**处理的，`kdl_effort_controller` 排第一、`joint_state_broadcaster` 排第二（§4 步骤 4），所以 `/joint_states` 比控制器接手**晚约 40 ms**；从物理线程启动算起约 **0.28 s** 内它还不存在 | 等约 0.3 s 再调，或先 `ros2 topic echo /joint_states --once` 确认有数据。调换 spawner 里两个名字的顺序可以消掉这个窗口，但会让无控自由落体多约 40 ms（取舍见 §4） |
 | 启动后机械臂不是从零位开始，而是"摔"到一个位形 | 控制器激活前 ~0.3 s 无控制自由下落（**无法消除**，见 §4 下方说明） | 已用 MJCF 关节阻尼把落体幅度压到约 1/6 |
 | 机械臂大幅摆动 / 力矩长期饱和 | PID 增益与 `u_clamp` 不匹配（线性区太窄） | 见 `config/mujoco_pids.yaml` 头部注释（按 `M(q)` 反推增益） |
 | 某个关节怎么都到不了目标（时间跑完却差一截） | 多半是连杆自碰撞卡住 | 返回 `error_code=8`；见 `robotic_arm_torque.xml` 的 `<contact>` 注释 |
