@@ -761,8 +761,10 @@ void ControlNode::controlTaskCallback(
   }
 
   // ---- 8. 终点到位自检 ----
-  // 控制器"把参考时间跑完"不等于"机械臂到位"：若末端/连杆发生自碰撞、或力矩被限幅，
+  // 控制器"把参考时间跑完"不等于"机械臂到位"：若某关节**有效刚度过低**（零位的 joint4 只有
+  // 0.165 N·m/rad）、力矩被限幅、或增益在该构型失稳（零位的 250 Hz 极限环，见 README §7.2），
   // 关节会卡在半路，而参考时间照样走完。这里在终点核对一次实际残差，避免"没到位却报成功"。
+  // 注意：本模型接触已全部 exclude（含地面），**不可能是自碰撞**。
   // 给 0.5 s（墙钟）让末端落定再量，避免把正常收尾的暂态误判成超差。
   if (code == 0 && !trajectory.points.empty()) {
     // 先等机械臂"真的停下来"再量：轮询到各关节速度都足够小，或者最多等 settle_timeout。
@@ -805,7 +807,8 @@ void ControlNode::controlTaskCallback(
           response, kNotReached,
           "轨迹时间已跑完，但终点未到位：关节 " + controller_joints_[worst] + " 残差 " +
             std::to_string(max_error) + " rad（阈值 " + std::to_string(tracking_tolerance_) +
-            "）。常见原因：末端/连杆自碰撞挡住了关节，或力矩被限幅");
+            "）。常见原因：该关节有效刚度过低（如零位的 joint4）、力矩被限幅，或增益在该"
+            "构型失稳；本模型接触已全部 exclude，不是自碰撞（见 README §7.2）");
         return;
       }
     }
