@@ -13,8 +13,7 @@
 >                              ──topic /control_reference──▶ kdl_effort_controller（前馈 τ_ff + PID）
 >                                                          ──effort 接口──▶ MuJoCo <motor>
 > ```
-> 设计/决策/实现记录 → [`PLAN_TORQUE.md`](./PLAN_TORQUE.md)；
-> 实现与联调中 5 个问题的完整排查 → [`力矩控制问题报告.md`](./力矩控制问题报告.md)。
+> 设计/决策/实现记录 → [`PLAN_TORQUE.md`](./PLAN_TORQUE.md)。
 
 ---
 
@@ -223,7 +222,7 @@ launch 内部顺序（不要随意打乱）：
 [kdl_effort_controller]: 已激活：进入重力锁位
 ```
 
-> ⚠️ **已知现象（问题 3）**：控制器被 spawner 激活之前（约 0.3 s），`effort` 命令一直是 0，
+> ⚠️ **已知现象**：控制器被 spawner 激活之前（约 0.3 s），`effort` 命令一直是 0，
 > 机械臂会在重力下**自由下落**，最后锁在"摔到哪算哪"的位形。
 >
 > 这一段**无法消除**，原因是循环依赖：激活控制器需要控制循环跑一拍 → 控制循环需要仿真
@@ -238,7 +237,7 @@ launch 内部顺序（不要随意打乱）：
 >     时刻 t = 0.28 s：joint2 从 1.410 rad 降到 0.232 rad，joint4 从 1.622（冲出限位
 >     0.054 rad）降到 0.308（限位内）。
 >
-> 详见 [`力矩控制问题报告.md`](./力矩控制问题报告.md) §3 与 MJCF 文件头的"关节阻尼"注释。
+> 详见 MJCF（`src/model/robotic_arm_torque.xml`）文件头的"关节阻尼"注释。
 
 ---
 
@@ -269,7 +268,7 @@ read/update/write   （500 Hz，每 2 ms 一次，恰好每步一次）
 ```
 
 > 力矩环取 500 Hz（= 物理步速率）是为了把离散化相位滞后压到最小。
-> 若降到 100 Hz（每 5 步一次），`kp` 给大了就更容易在采样间振荡（见问题报告 §2）。
+> 若降到 100 Hz（每 5 步一次），`kp` 给大了就更容易在采样间振荡（增益的推导见 `config/mujoco_pids.yaml` 头部注释）。
 
 ---
 
@@ -340,15 +339,31 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 | `Effort command interface ... not supported with position or velocity actuator. Skipping it.` | 用了位置版 MJCF（`<position>`） | 力矩模式必须用 `scene_torque.xml`（`<motor>`） |
 | `/control_task` 偶发返回 `error_code=1`，日志里「`/joint_states` 里缺少链上关节」 | DDS 域 0 上有**外来发布者**也在发 `/joint_states`（校园网/同事的机器），帧被交替覆盖 | **先按 §4.0 设 `ROS_DOMAIN_ID` + `ROS_LOCALHOST_ONLY=1`**；用 `ros2 topic info /joint_states -v` 确认发布者只有 1 个 |
 | 同上，但发布者确实只有 1 个 | `joint_state_broadcaster` 还没激活 | 等服务起来再调（`ros2 topic echo /joint_states --once` 能收到≠控制节点也收到了，看它自己的日志） |
-| 启动后机械臂不是从零位开始，而是"摔"到一个位形 | 控制器激活前 ~0.3 s 无控制自由下落（问题 3，**无法消除**，见该行下方说明） | 已用 MJCF 关节阻尼把落体幅度压到约 1/6 |
-| 机械臂大幅摆动 / 力矩长期饱和 | PID 增益与 `u_clamp` 不匹配（线性区太窄） | 见问题报告 §2（按 `M(q)` 反推增益） |
-| 某个关节怎么都到不了目标（时间跑完却差一截） | 多半是连杆自碰撞卡住 | 返回 `error_code=8`；见问题报告 §4 |
+| 启动后机械臂不是从零位开始，而是"摔"到一个位形 | 控制器激活前 ~0.3 s 无控制自由下落（**无法消除**，见 §4 下方说明） | 已用 MJCF 关节阻尼把落体幅度压到约 1/6 |
+| 机械臂大幅摆动 / 力矩长期饱和 | PID 增益与 `u_clamp` 不匹配（线性区太窄） | 见 `config/mujoco_pids.yaml` 头部注释（按 `M(q)` 反推增益） |
+| 某个关节怎么都到不了目标（时间跑完却差一截） | 多半是连杆自碰撞卡住 | 返回 `error_code=8`；见 `robotic_arm_torque.xml` 的 `<contact>` 注释 |
 | `Plugin ... MujocoSystem` 加载失败 | `<plugin>` 名写错 | 必须是 `mujoco_ros2_control/MujocoSystemInterface` |
 | `Failed loading controller kdl_effort_controller` | 插件没装/名字不对 | 确认 `share/kdl_tools/controller_plugins.xml` 存在，`type` 为 `kdl_tools/KdlEffortController` |
 | `MuJoCo model file '...' does not exist!` | `mujoco_model` 没被 xacro 展开或路径不存在 | 用 xacro 生成描述；默认指向 `share/kdl_tools/model/scene_torque.xml` |
 | CM 一直卡住、控制器 spawner 超时 | `/clock` 没发布（仿真没跑起来） | 看插件日志是否 `Running in HEADLESS mode` / 模型是否加载成功 |
 | 模型发散、`Diverged` 警告 | 增益过大（尤其小惯量腕关节），或 `timestep` 太大 | 按 `M(q)` 重算增益；或降 `timestep` |
 | 手臂在零位附近自己抖动/啃在一起 | 连杆凸包接触力 | 已在 `robotic_arm_torque.xml` 的 `<contact><exclude>` 里排除相邻**与非相邻**对 |
+
+### 7.1 可复用排查手段
+
+排查「控制不动 / 不到位 / 发抖」时按这个顺序走，能避免一上来就去调增益：
+
+1. **一维摆判据**：把"符号约定"变成"能不能抵住"的二元事实 —— 造一个质心明确、重力方向明确的
+   单关节链，看 `FD(τ)` 是否为 0。本项目 `gravityTorque` 的符号就是这么定下来的
+   （见 `kdl_dynparam.hpp` 的注释）。
+2. **KDL ↔ MuJoCo 交叉验证**：`inverseDynamics(chain, q, 0, 0)` 对 `mjData.qfrc_bias` 逐位比对，
+   判断前馈是否可信。
+3. **离线复现控制律**：把控制器里的同一段控制律写进一个纯 MuJoCo 小程序。若结果与在线一致，
+   即可**排除 ROS 链路**；再在离线程序里关接触、改初值，快速二分定位。
+4. **力分解对照**：同时打印 `ctrl` / `qfrc_actuator` / `qfrc_bias` / `qfrc_passive` /
+   `qfrc_constraint` / `qacc` —— 「净力矩不为零却不加速」必然对应非零的约束力。
+5. **先读 `M(q)` 对角再调增益**：量出等效惯量，避免用"经验值"跨几个数量级去猜。
+6. **接触列表**：`ncon` + 接触对 + `dist`，确认是不是几何/碰撞问题（假自接触的典型症状）。
 
 ---
 
@@ -370,7 +385,7 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 `headless:=true`：
 
 * `/clock` ≈ **500 Hz** → 物理步 2 ms；`/joint_states` = **50 Hz**（JSB 10 分频）；
-* 起完约 0.3 s 内 `effort` 全为 0（无控制自由下落，问题 3），之后控制器接管并锁位；
+* 起完约 0.3 s 内 `effort` 全为 0（无控制自由下落），之后控制器接管并锁位；
 * 端到端任务（`with_bridge`）：
 
 | 用例 | 结果 |
@@ -380,7 +395,8 @@ ros2 service call /mujoco_ros2_control_node/reset_world \
 | 关节空间 `[1.2,-1.2,1.4,0.6]`，`duration: 0` → 自动 3.83 s | `error_code=0`；稳态 `[1.2000,-1.2000,1.4000,0.6000]`，**残差 0.0000 rad**，零过冲 |
 
 > 过程中遇到的 5 个问题（教学库重力符号、PID 不可用、自由下落、假自碰撞、完成判据）
-> 的现象与排查见 [`力矩控制问题报告.md`](./力矩控制问题报告.md)。
+> 的结论分别落在：`kdl_dynparam.hpp` 的 `gravityTorque` 注释、`config/mujoco_pids.yaml`
+> 头部、本文档 §4、`robotic_arm_torque.xml` 的 `<contact>` 注释、本文档 §10.2。
 
 ---
 
@@ -493,7 +509,5 @@ kdl_tools.srv.ControlTask_Response(error_code=0, success=True,
 
 > ⚠️ **已知残留问题**：大行程轨迹在**峰值速度段**会出现 0.1~0.2 s 的高频振荡，实测关节速度冲到
 > 14~22 rad/s（URDF 上限 10 rad/s），随后自恢复且不影响最终精度。7 次实测中出现 5 次。
-> 详见 [`力矩控制问题报告.md`](./力矩控制问题报告.md) 文末注记。
 
-更细的设计与决策见 [`PLAN_TORQUE.md`](./PLAN_TORQUE.md)；问题排查见
-[`力矩控制问题报告.md`](./力矩控制问题报告.md)。
+更细的设计与决策见 [`PLAN_TORQUE.md`](./PLAN_TORQUE.md)。
