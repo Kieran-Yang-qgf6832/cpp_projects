@@ -4,7 +4,8 @@
 `read()/write()` 里与 MuJoCo 交换数据，上层控制器完全不用知道下面跑的是仿真还是真机。
 
 本目录是这条链路的所有"胶水"：机器人描述、控制器配置、启动文件、可视化配置。
-二进制源码（插件本体）在 `src/mujoco_ros2_control/`，机械模型在 `src/model/`。
+**插件本体不在本仓库** —— 跑的是 apt 装的 `ros-jazzy-mujoco-ros2-control`（当前 0.1.1，
+本仓库既不构建它、也不持有其源码）；机械模型在 `src/model/`。
 
 > **本目录已从「位置轨迹 + JTC」改为「力矩控制 + 自研控制器」。**
 > 现在的链路是：
@@ -199,7 +200,7 @@ launch 内部顺序（不要随意打乱）：
 1. `xacro` 展开 `urdf/robotic_arm_mujoco.urdf.xacro` → `robot_description`；
 2. `robot_state_publisher`：既广播 TF，又把 URDF 以 `transient_local` 发到
    `/robot_description` —— **`ros2_control_node` 就是从这个话题取 URDF 的**；
-3. `mujoco_ros2_control/ros2_control_node`（改造版 CM）：加载 `arm_hw` 硬件、
+3. `mujoco_ros2_control/ros2_control_node`（来自 apt 包，非本仓库源码）：加载 `arm_hw` 硬件、
    构造 MuJoCo 模型、起物理线程与渲染线程，然后等 `/clock` 跑起来；
 4. `spawner` 依次加载并激活 `joint_state_broadcaster`、`kdl_effort_controller`
    （`--controller-manager-timeout 60`，因为首次编译 MJCF+STL、等时钟可能超过默认 10 s）；

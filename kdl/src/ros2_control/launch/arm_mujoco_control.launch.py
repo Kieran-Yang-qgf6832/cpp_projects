@@ -131,11 +131,14 @@ def launch_setup(context, *args, **kwargs):
     #
     # ⚠️ 这段注释曾有两处与事实不符，已按源码 + 实测更正：
     #   (1) 原："CM 还要等仿真时钟跑起来（wait_until_started）才会响应" —— 错。那行
-    #       wait_until_started() 被**刻意放在控制循环里**，就是为了不阻塞服务
-    #       （mujoco_ros2_control_node.cpp 里标着 CHANGED FROM UPSTREAM 的那段：
+    #       wait_until_started() 被**刻意放在控制循环里**，就是为了不阻塞服务。该行为
+    #       出自 upstream 的 mujoco_ros2_control_node.cpp，原文注释：
     #       "So instead, we just wait in the control loop so that the hardware interface
-    #       can still start and run."）。所以**加载/激活控制器不依赖 sim_time**，只有
-    #       控制循环的 read/update/write 依赖它。反证：spawner 进程在硬件 activate
+    #       can still start and run."
+    #       ⚠️ 那是 **upstream 自己的改动**（"CHANGED FROM UPSTREAM" 是 upstream 写的），
+    #       不是本仓库打的补丁 —— 本仓库不持有该源码，跑的是 apt 包
+    #       ros-jazzy-mujoco-ros2-control 0.1.1。所以**加载/激活控制器不依赖 sim_time**，
+    #       只有控制循环的 read/update/write 依赖它。反证：spawner 进程在硬件 activate
     #       **之前**就已经启动了。
     #   (2) 原："顺序有讲究：先广播器，控制器才有状态可读" —— 不准。顺序原本根本不是
     #       这个列表决定的，而是上面那把锁的竞态；而且 kdl_effort_controller 不依赖

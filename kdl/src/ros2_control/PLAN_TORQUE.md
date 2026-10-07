@@ -543,7 +543,7 @@ realtime_tools::RealtimeBuffer<T>;
 realtime_tools::RealtimePublisher<T>;
 ```
 
-**MuJoCo 侧（本仓库 `src/mujoco_ros2_control`）**
+**MuJoCo 侧（apt 包 `ros-jazzy-mujoco-ros2-control` 0.1.1，本仓库不持有其源码）**
 
 ```cpp
 // write(): control_data->ctrl[actuator.mj_actuator_id] = actuator.effort_interface.command_;
