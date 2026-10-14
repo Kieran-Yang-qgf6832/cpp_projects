@@ -1,0 +1,116 @@
+<mujoco model="robotic_arm">
+  <!--
+    ==========================================================================
+    关节阻尼（沿用 src/model/robotic_arm.xml 的实测选定值：joint1/2 = 0.2，joint3/4 = 0.02）
+    ==========================================================================
+    为什么加：开机时物理先跑、控制器晚约 0.3 s 才接管，这段自由落体让臂撞进控制器
+    的"重力锁位"，产生欠阻尼振荡，joint1 力矩峰值一度逼近 50 N·m 上限，joint4 还会
+    瞬时冲出限位。加阻尼后力矩峰值大幅下降。
+
+    为什么分关节给：收益和代价来自不同关节。
+      · 收益几乎全在 joint1/joint2 —— 它们承担重力负载，也是力矩峰值的来源，
+        且它们的 P 增益大，加阻尼几乎无代价。
+      · 代价几乎全在 joint3/joint4 —— 它们 P 增益极小（500 / 50），阻尼力矩
+        会直接变成跟随滞后。整定时间常数 τ ≈ (kd + damping) / kp，所以同样的
+        阻尼值在这两个关节上的代价是 joint1 的几十倍。
+
+    注意：阻尼对控制器是**未建模扰动** —— URDF 里没有 <dynamics>，KDL 的
+    inverseDynamics 也不含关节阻尼，所以前馈补不掉它，只能靠 PID 反馈。
+    静止时阻尼力矩为零，所以不影响稳态精度，只影响运动中的跟随。
+    ==========================================================================
+  -->
+  <!-- angle=radian：关节角与朝向都用弧度，和 URDF 一致。
+       朝向一律写 quat="w x y z"，不用 euler + eulerseq：
+       四元数与欧拉角序列约定无关，后续编辑或 URDF<->MJCF 往返转换时不会
+       因为约定对不上而悄悄把连杆姿态转错（这正是 mujoco_ros2_control 自带的
+       URDF->MJCF 转换脚本 mj_saveLastXML 的输出形式）。
+       下面每个 body 的 quat 都由注释里给出的 URDF rpy 按
+       R = Rz(yaw) * Ry(pitch) * Rx(roll) 换算得到。 -->
+  <compiler angle="radian" autolimits="true"/>
+  <!-- implicitfast：MuJoCo 推荐的隐式积分器，对带 damping/接触的铰接臂数值更稳。 -->
+  <option integrator="implicitfast"/>
+  <asset>
+    <mesh name="base_link" file="base_link.STL" />
+    <mesh name="link1" file="link1.STL" />
+    <mesh name="link2" file="link2.STL" />
+    <mesh name="link3" file="link3.STL" />
+    <mesh name="link4" file="link4.STL" />
+  </asset>
+  <worldbody>
+    <body name="base_link">
+      <inertial pos="-0.00613174066699826 3.85470977859459e-07 0.0166481130400121" mass="0.427216641570714" fullinertia="0.000213744831084303 0.00138030141939327 0.00121730119066284 -2.18020596925942e-10 -6.30192512757199e-19 -3.87344576298545e-20" />
+      <geom type="mesh" rgba="0.866666666666667 0.909803921568627 1 1" mesh="base_link" />
+      <site name="tool_site" pos="0 0 0" size="0.01" />
+      <body name="link1" pos="0 -0.04 0.05" quat="0.500000000003 -0.500001836596 -0.499998163391 -0.500000000003">
+        <inertial pos="0.158135097125314 0.000342632794264497 0.0344812653979478" mass="0.42895895814344" fullinertia="5.74761063393089e-05 0.00242825173247488 0.00245260667938115 -1.98884185943665e-06 -8.89209679903407e-08 1.04378146626604e-08" />
+        <!-- URDF joint1 origin rpy = 1.5708 -1.5708 -3.1416 -->
+        <joint name="joint1" pos="0 0 0" axis="0 0 1" range="-1.5708 1.5708" actuatorfrcrange="-50 50" damping="0.2" />
+        <geom type="mesh" rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" mesh="link1" />
+        <body name="link2" pos="0.374 0 0.0401" quat="0.707105482511 0.707108079859 0 0">
+          <inertial pos="0.255441404442584 -0.00550286241264522 2.44702789364837e-06" mass="0.345736053543522" fullinertia="0.000109745347770862 0.000611455691487858 0.000595130199534522 -8.24732430962464e-09 4.99650464488766e-09 -1.28996019192405e-07" />
+          <!-- URDF joint2 origin rpy = 1.5708 0 0 -->
+          <joint name="joint2" pos="0 0 0" axis="0 -1 0" range="-3.1 3.1" actuatorfrcrange="-50 50" damping="0.2" />
+          <geom type="mesh" rgba="0.866666666666667 0.909803921568627 1 1" mesh="link2" />
+          <body name="link3" pos="0.401 -0.0055 0" quat="-0.00000389602235584 0.707106781181 0.00000129867411863 0.707106781181">
+            <inertial pos="-0.00196550529007689 0.0104723769838727 0.0324873038781422" mass="0.0790560069863495" fullinertia="2.685916592933e-05 3.02658377587012e-05 2.43012348177915e-05 -6.93466120976546e-07 -6.99827207689212e-08 3.90412457829724e-07" />
+            <!-- URDF joint3 origin rpy = 1.5708 -1.5708 1.5708 -->
+            <joint name="joint3" pos="0 0 0" axis="0 0 1" range="-3.14 3.14" actuatorfrcrange="-50 50" damping="0.02" />
+            <geom type="mesh" rgba="0.866666666666667 0.909803921568627 1 1" mesh="link3" />
+            <body name="link4" pos="-0.0031501 0.017214 0.0434" quat="0.500000000003 0.500001836596 -0.499998163391 0.500000000003">
+              <inertial pos="0.0703269689512487 0.0145451030061502 0.0177715058555951" mass="0.273624112916379" fullinertia="0.000155783214944798 0.000131667366825303 0.000155861616479011 1.0803236145712e-05 1.35189557633175e-07 -1.99370878917937e-07" />
+              <!-- URDF joint4 origin rpy = -1.5708 -1.5708 3.1416 -->
+              <joint name="joint4" pos="0 0 0" axis="0 0 1" range="-1.5708 1.5708" actuatorfrcrange="-50 50" damping="0.02" />
+              <geom type="mesh" rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" mesh="link4" />
+              <site name="ee_site" pos="0.1165 0 0" size="0.01" />
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <contact>
+    <exclude body1="base_link" body2="link1" />
+    <exclude body1="link1" body2="link2" />
+    <exclude body1="link2" body2="link3" />
+    <exclude body1="link3" body2="link4" />
+  </contact>
+  <!-- 执行器：位置伺服（MuJoCo 内置 PD）。
+       ctrl 的语义就是"目标关节角"，正好对应 ros2_control 的 position 命令接口，
+       所以 JointTrajectoryController 可以不加任何 PID 直接驱动这套模型。
+       dampratio="1.0" 时 MuJoCo 会按该关节的实际等效惯量自动算出临界阻尼的 kv，
+       因此只需要调 kp：kp 越大越"硬"、稳态下沉越小，过大则在数值上发散。
+       下面这组 kp 沿用 src/model/robotic_arm.xml 的 joint1~joint4（100/800/500/50）：
+       本臂质量/惯量与参考臂同量级（连杆 0.08~0.43 kg、惯量 2.4e-5~2.5e-3 kg·m²），
+       沿用后仍需在仿真里实测微调。
+       ctrlrange 取关节行程，MuJoCo 会把设定值夹在行程内。
+
+       effort 上限：与 URDF 各关节的 <limit effort> 一致——本模型四个关节均为
+       50 N·m。actuatorfrcrange 是 MuJoCo 侧的物理夹取，改 URDF 的 effort 时
+       必须同步改这里。
+
+       若要改成纯力矩控制（ros2_control 侧用 effort 命令接口 + 力矩控制器），
+       用同目录的 robotic_arm_torque.xml / scene_torque.xml。
+       MuJoCo 不允许在运行期切换执行器类型，所以这是二选一的编译期决定。 -->
+  <actuator>
+    <position name="motor1" joint="joint1" kp="100" dampratio="1.0" ctrllimited="true" ctrlrange="-1.5708 1.5708" />
+    <position name="motor2" joint="joint2" kp="800" dampratio="1.0" ctrllimited="true" ctrlrange="-3.1 3.1" />
+    <position name="motor3" joint="joint3" kp="500" dampratio="1.0" ctrllimited="true" ctrlrange="-3.14 3.14" />
+    <position name="motor4" joint="joint4" kp="50" dampratio="1.0" ctrllimited="true" ctrlrange="-1.5708 1.5708" />
+  </actuator>
+  <sensor>
+    <actuatorpos name="motor1_p" actuator="motor1" />
+    <actuatorpos name="motor2_p" actuator="motor2" />
+    <actuatorpos name="motor3_p" actuator="motor3" />
+    <actuatorpos name="motor4_p" actuator="motor4" />
+    <actuatorvel name="motor1_v" actuator="motor1" />
+    <actuatorvel name="motor2_v" actuator="motor2" />
+    <actuatorvel name="motor3_v" actuator="motor3" />
+    <actuatorvel name="motor4_v" actuator="motor4" />
+    <actuatorfrc name="motor1_f" actuator="motor1" noise="1e-3" />
+    <actuatorfrc name="motor2_f" actuator="motor2" noise="1e-3" />
+    <actuatorfrc name="motor3_f" actuator="motor3" noise="1e-3" />
+    <actuatorfrc name="motor4_f" actuator="motor4" noise="1e-3" />
+    <framepos name="ee_pos" objtype="site" objname="ee_site" />
+    <framequat name="ee_quat" objtype="site" objname="ee_site" />
+  </sensor>
+</mujoco>

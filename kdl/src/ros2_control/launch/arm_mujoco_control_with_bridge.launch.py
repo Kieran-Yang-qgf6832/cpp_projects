@@ -13,7 +13,7 @@
   ros2 launch kdl_tools arm_mujoco_control_with_bridge.launch.py headless:=true
   # 另开终端（launch 起完约 5~10 s）：
   ros2 service call /control_task kdl_tools/srv/ControlTask \
-    "{task_type: 0, goal_joint: [0.5, -0.4, 0.6, 0.3, 0.2, 0.5], duration: 5.0}"
+    "{task_type: 0, goal_joint: [0.5, -0.4, 0.6, 0.3,], duration: 5.0}"
 
 注意：控制节点会阻塞着等轨迹执行完（由控制器的 ~/status 回报），这是设计如此
 （service 的语义就是"把这条轨迹执行完"）；它用多线程执行器，不影响 /clock 与控制器。

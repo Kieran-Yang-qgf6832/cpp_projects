@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="robotic_arm">
+  <!--
+    ==========================================================================
+    为什么根 link 是一个**无惯量的 world**，而不是直接拿 base_link 当根
+    ==========================================================================
+    base_link 是有质量的实体（0.446 kg）。把它当 URDF 的根时，kdl_parser 每次
+    解析都会刷一条警告：
+
+        The root link base_link has an inertia specified in the URDF, but KDL
+        does not support a root link with an inertia.
+
+    这条警告不是噪声，它说的是实话：KDL 的 Chain 从第一个**可动**关节开始，
+    根 link 的惯量它根本没有地方放，只能丢掉。所以那个 0.446 kg 写在 URDF 里
+    从来就没有被任何消费者用过（MuJoCo 也不用它——base_link 在 MJCF 里是
+    worldbody 的子 body，被焊死在世界上）。
+
+    加一个无惯量的 world 当根、再用固定关节接到 base_link，就同时解决两件事：
+      1. 警告消失（根 link 没有 <inertial> 了）；
+      2. **URDF 和 MJCF 的结构对齐了** —— MJCF 那边本来就是
+         <worldbody><body name="base_link">…，根是 world，base_link 是它的孩子。
+         原来两边不一致，只是没人注意。
+
+    base_link 自己的惯量**一个字都没动**：它是真实数据，将来要建模浮动基座
+    （给这个固定关节换个 free joint）时就会用上。删掉它才是错的。
+    ==========================================================================
+  -->
+  <link name="world" />
+
+  <!-- 固定关节：world → base_link，单位变换（不动基座位姿，只是把根让出来） -->
+  <joint
+    name="world_to_base"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="world" />
+    <child
+      link="base_link" />
+  </joint>
+
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-9.52016243616072E-15 -1.94289029309402E-16 0.0155191781345583"
+        rpy="0 0 0" />
+      <mass
+        value="0.446116144380579" />
+      <inertia
+        ixx="0.000224798050494485"
+        ixy="-2.18020596920716E-10"
+        ixz="-7.25060202849681E-19"
+        iyy="0.00138255058840876"
+        iyz="-2.37030607855116E-20"
+        izz="0.00122839549734328" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link1">
+    <inertial>
+      <origin xyz="0.185161352604885 -0.000484517822704985 0.0344853139404591" rpy="0 0 0" />
+      <mass value="0.43178795433662" />
+      <inertia ixx="5.95220756310729e-05" ixy="-5.52489087469686e-05" ixz="0.000522992530475199" iyy="-0.00236433197842905" iyz="-1.00528718317445e-05" izz="0.00537895748392181" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint1"
+    type="revolute">
+    <origin
+      xyz="0 -0.04 0.05"
+      rpy="1.5708 -1.57 -3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="link1" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-1.5708"
+      upper="1.5708"
+      effort="50"
+      velocity="10" />
+  </joint>
+  <link
+    name="link2">
+    <inertial>
+      <origin xyz="0.205428720543183 -0.00549634835835082 0.0216863171151742" rpy="0 0 0" />
+      <mass value="0.334761105911474" />
+      <inertia ixx="5.79518099279563e-05" ixy="22.8660615389612" ixz="0.000211163097472027" iyy="0.000538182164268373" iyz="9.3276572774835" izz="0.000554715749371033" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint2"
+    type="revolute">
+    <origin
+      xyz="0.374 0 0.0401"
+      rpy="1.5708 0.0 0.0" />
+    <parent
+      link="link1" />
+    <child
+      link="link2" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.1"
+      upper="3.1"
+      effort="50"
+      velocity="10" />
+  </joint>
+  <link
+    name="link3">
+    <inertial>
+      <origin xyz="0.00248724778721815 0.0138507478313705 0.257813542210393" rpy="0 0 0" />
+      <mass value="0.0853938021447267" />
+      <inertia ixx="-0.0133232406953905" ixy="0.000151407116047102" ixz="0.000286504572784501" iyy="-0.0133928383530379" iyz="-0.000176411196579637" izz="-0.000330071899310181" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint3"
+    type="revolute">
+    <origin
+      xyz="0.3384 -0.0055 0.045"
+      rpy="-1.5708 -1.5708 -1.5708" />
+    <parent
+      link="link2" />
+    <child
+      link="link3" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="50"
+      velocity="10" />
+  </joint>
+  <link
+    name="link4">
+    <inertial>
+      <origin xyz="0.059635820669062 -0.00944820891493751 0.0197568580466249" rpy="0 0 0" />
+      <mass value="0.270304200915482" />
+      <inertia ixx="0.000392010484031026" ixy="0.000183415046034624" ixz="0.000106650417751778" iyy="0.000500203250283123" iyz="-0.000221461424152472" izz="0.000496145311825324" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.847058823529412 0.847058823529412 0.847058823529412 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://kdl_tools/model/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint4"
+    type="revolute">
+    <origin
+      xyz="0.00079568 0.018983 0.043"
+      rpy="-1.5708 -1.5708 3.14" />
+    <parent
+      link="link3" />
+    <child
+      link="link4" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-1.5708"
+      upper="1.5708"
+      effort="50"
+      velocity="10" />
+  </joint>
+</robot>

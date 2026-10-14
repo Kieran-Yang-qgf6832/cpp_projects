@@ -285,6 +285,67 @@ target_compile_definitions(fourier_demo PRIVATE
 target_link_libraries(fourier_demo PRIVATE kdl_identify_trajectory_lib)
 
 # ---------------------------------------------------------------------------
+# URDF 导出：src/ParameterIdentification/export_urdf
+#   kdl_urdf_export  把辨识出的 β 写回 URDF 的 <inertial>，并做零空间补全。
+#                    β 是"相对关节坐标系原点"的，URDF 是"相对质心"的，差一个
+#                    平行轴定理；且最小二乘会把不可辨识项置 0（出现 m=0、m·c≠0
+#                    的非法组合），所以导出前必须先 completeWithPrior()。
+# 依赖 kdl_identification_lib（β 的布局/换算）与 Tools（URDF -> 链、往返校验）。
+# ---------------------------------------------------------------------------
+add_library(kdl_urdf_export_lib
+  src/ParameterIdentification/export_urdf/src/kdl_urdf_export.cpp
+  src/ParameterIdentification/export_urdf/src/kdl_lmi_projection.cpp
+)
+
+target_include_directories(kdl_urdf_export_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/export_urdf/include>
+  $<INSTALL_INTERFACE:include/kdl_tools>
+)
+
+target_link_libraries(kdl_urdf_export_lib PUBLIC
+  rclcpp::rclcpp
+  orocos-kdl
+  kdl_identification_lib
+  kdl_tools_lib
+)
+
+# 离线验证示例：构造"真值 ≠ 先验"的场景 -> 辨识 -> 导出 URDF -> 留出轨迹验证。
+# 输出目录固定到本模块（导出的 URDF 暂时落在这里，便于人工 diff 核对）。
+add_executable(export_urdf_demo
+  src/ParameterIdentification/export_urdf/example/export_urdf_demo.cpp
+)
+target_compile_definitions(export_urdf_demo PRIVATE
+  KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
+  KDL_EXPORT_URDF_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/export_urdf"
+)
+target_link_libraries(export_urdf_demo PRIVATE
+  kdl_urdf_export_lib
+  kdl_identify_trajectory_lib
+  kdl_identification_lib
+  kdl_tools_lib
+  kdl_dynamics_lib
+)
+
+# 闭环复用第一步：把 kdl_identify_node 导出的 identification_params.csv 变成 URDF，
+# 供控制器的 urdf_file 参数使用。默认开物理可行性投影 —— 喂下游的文件必须合法。
+add_executable(export_urdf_from_params
+  src/ParameterIdentification/export_urdf/example/export_urdf_from_params.cpp
+)
+target_compile_definitions(export_urdf_from_params PRIVATE
+  KDL_TOOLS_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/model"
+  KDL_EXPORT_URDF_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/export_urdf"
+  # 直接写全路径，不复用节点那段的 KDL_IDENTIFY_DRAW_DIR —— 那个变量在本目标
+  # 之后才 set，这里引用会展开成空串（踩过一次）。
+  KDL_IDENTIFY_DRAW_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ParameterIdentification/draw"
+)
+target_link_libraries(export_urdf_from_params PRIVATE
+  kdl_urdf_export_lib
+  kdl_identification_lib
+  kdl_tools_lib
+  kdl_identify_trajectory_lib
+)
+
+# ---------------------------------------------------------------------------
 # 参数辨识节点：src/ParameterIdentification/node/kdl_identify_node.cpp
 #   优化激励 -> 下发 /control_reference -> 采集 /mujoco_actuators_states
 #   -> 差分求 q̈ -> 拼回归矩阵（含摩擦列）-> 最小二乘 -> 打印 + 存 CSV。
@@ -327,9 +388,9 @@ install(DIRECTORY src/ParameterIdentification/launch
 # 安装
 # ---------------------------------------------------------------------------
 install(TARGETS kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
-        kdl_control_lib kdl_identification_lib kdl_identify_trajectory_lib
+        kdl_control_lib kdl_identification_lib kdl_identify_trajectory_lib kdl_urdf_export_lib
         build_from_urdf fk_ik_demo ik_analytic_demo vel_acc_demo dynamics_demo quintic_demo
-        cartesian_demo control_demo regressor_lsq_demo fourier_demo
+        cartesian_demo control_demo regressor_lsq_demo fourier_demo export_urdf_demo export_urdf_from_params
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -362,6 +423,9 @@ install(DIRECTORY src/ParameterIdentification/identification/include/
   DESTINATION include/kdl_tools
 )
 install(DIRECTORY src/ParameterIdentification/identify_trajectory/include/
+  DESTINATION include/kdl_tools
+)
+install(DIRECTORY src/ParameterIdentification/export_urdf/include/
   DESTINATION include/kdl_tools
 )
 
@@ -577,7 +641,7 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/plot_identification
 ament_export_include_directories(include/kdl_tools)
 ament_export_libraries(kdl_tools_lib kdl_kinematics_lib kdl_dynamics_lib kdl_interpolation_lib
                       kdl_control_lib kdl_state_machine_lib kdl_identification_lib
-                      kdl_identify_trajectory_lib)
+                      kdl_identify_trajectory_lib kdl_urdf_export_lib)
 ament_export_dependencies(rclcpp urdf kdl_parser orocos_kdl_vendor)
 
 ament_package()
